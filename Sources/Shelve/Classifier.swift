@@ -16,8 +16,8 @@ final class Classifier {
         for rule in config.config.rules {
             if rule.extensions.contains(ext) { return rule }
             if rule.keywords.contains(where: { name.contains($0) }) { return rule }
-            if !rule.dateConditions.isEmpty,
-               rule.dateConditions.contains(where: { $0.matches(url: url) }) {
+            if !rule.conditions.isEmpty,
+               rule.conditions.contains(where: { $0.matches(url: url) }) {
                 return rule
             }
         }

@@ -57,19 +57,31 @@ struct ShelveConfig: Codable {
     }
 }
 
-// MARK: - Date Condition
+// MARK: - File Condition
 
-struct DateCondition: Codable, Identifiable {
+struct FileCondition: Codable, Identifiable {
     var id: UUID = UUID()
+    var kind: Kind = .date
 
+    // MARK: Condition kind
+    enum Kind: String, Codable, CaseIterable {
+        case date          = "Date"
+        case timeOfDay     = "Time of Day"
+        case fromInternet  = "Downloaded from Internet"
+        case partialDownload = "Partial / Failed Download"
+        case fileSize      = "File Size"
+        case namePattern   = "Name Pattern"
+    }
+
+    // MARK: Date sub-fields
     enum DateField: String, Codable, CaseIterable {
-        case created     = "Date Created"
-        case modified    = "Date Modified"
-        case lastOpened  = "Last Opened"
+        case created    = "Date Created"
+        case modified   = "Date Modified"
+        case lastOpened = "Last Opened"
     }
     enum DateOperator: String, Codable, CaseIterable {
-        case olderThan = "is older than"
-        case newerThan = "is newer than"
+        case olderThan = "older than"
+        case newerThan = "newer than"
     }
     enum DateUnit: String, Codable, CaseIterable {
         case days   = "days"
@@ -77,46 +89,106 @@ struct DateCondition: Codable, Identifiable {
         case months = "months"
     }
 
-    var field:    DateField    = .modified
-    var op:       DateOperator = .olderThan
-    var value:    Int          = 30
-    var unit:     DateUnit     = .days
+    // MARK: Size sub-fields
+    enum SizeOperator: String, Codable, CaseIterable {
+        case largerThan  = "larger than"
+        case smallerThan = "smaller than"
+    }
 
-    /// Returns the threshold date and whether the file's attribute date satisfies this condition.
+    // MARK: Name sub-fields
+    enum NameOperator: String, Codable, CaseIterable {
+        case contains   = "contains"
+        case startsWith = "starts with"
+        case endsWith   = "ends with"
+        case matches    = "matches regex"
+    }
+
+    // Date fields
+    var dateField: DateField    = .modified
+    var dateOp:    DateOperator = .olderThan
+    var dateValue: Int          = 30
+    var dateUnit:  DateUnit     = .days
+
+    // Time of day fields (hour 0–23, wraps midnight if from > to)
+    var timeFrom: Int = 0
+    var timeTo:   Int = 6
+
+    // File size fields
+    var sizeOp: SizeOperator = .largerThan
+    var sizeMB: Double       = 100
+
+    // Name pattern fields
+    var nameOp:      NameOperator = .contains
+    var namePattern: String       = ""
+
+    // MARK: Evaluation
     func matches(url: URL) -> Bool {
         let fm = FileManager.default
         guard let attrs = try? fm.attributesOfItem(atPath: url.path) else { return false }
 
-        let fileDate: Date?
-        switch field {
-        case .created:
-            fileDate = attrs[.creationDate] as? Date
-        case .modified:
-            fileDate = attrs[.modificationDate] as? Date
-        case .lastOpened:
-            // kMDItemLastUsedDate via extended attributes; fall back to modification date
-            let resourceValues = try? url.resourceValues(forKeys: [.contentAccessDateKey])
-            fileDate = resourceValues?.contentAccessDate ?? attrs[.modificationDate] as? Date
-        }
+        switch kind {
 
-        guard let date = fileDate else { return false }
+        case .date:
+            let fileDate: Date?
+            switch dateField {
+            case .created:    fileDate = attrs[.creationDate] as? Date
+            case .modified:   fileDate = attrs[.modificationDate] as? Date
+            case .lastOpened:
+                let rv = try? url.resourceValues(forKeys: [.contentAccessDateKey])
+                fileDate = rv?.contentAccessDate ?? attrs[.modificationDate] as? Date
+            }
+            guard let date = fileDate else { return false }
+            let cal = Calendar.current
+            let now = Date()
+            let threshold: Date?
+            switch dateUnit {
+            case .days:   threshold = cal.date(byAdding: .day,         value: -dateValue, to: now)
+            case .weeks:  threshold = cal.date(byAdding: .weekOfYear,  value: -dateValue, to: now)
+            case .months: threshold = cal.date(byAdding: .month,       value: -dateValue, to: now)
+            }
+            guard let t = threshold else { return false }
+            return dateOp == .olderThan ? date < t : date > t
 
-        let calendar = Calendar.current
-        let now = Date()
-        let threshold: Date?
-        switch unit {
-        case .days:   threshold = calendar.date(byAdding: .day,   value: -value, to: now)
-        case .weeks:  threshold = calendar.date(byAdding: .weekOfYear, value: -value, to: now)
-        case .months: threshold = calendar.date(byAdding: .month, value: -value, to: now)
-        }
-        guard let t = threshold else { return false }
+        case .timeOfDay:
+            let date = (attrs[.creationDate] as? Date) ?? Date()
+            let hour = Calendar.current.component(.hour, from: date)
+            if timeFrom <= timeTo {
+                return hour >= timeFrom && hour < timeTo
+            } else {
+                // wraps midnight e.g. 22→3
+                return hour >= timeFrom || hour < timeTo
+            }
 
-        switch op {
-        case .olderThan: return date < t
-        case .newerThan: return date > t
+        case .fromInternet:
+            // Files downloaded from the web have the com.apple.quarantine xattr
+            let size = getxattr(url.path, "com.apple.quarantine", nil, 0, 0, 0)
+            return size >= 0
+
+        case .partialDownload:
+            let ext = url.pathExtension.lowercased()
+            return ["crdownload", "download", "part", "partial", "tmp", "!ut", "bc!"].contains(ext)
+
+        case .fileSize:
+            let bytes = (attrs[.size] as? Int) ?? 0
+            let mb = Double(bytes) / 1_048_576
+            return sizeOp == .largerThan ? mb > sizeMB : mb < sizeMB
+
+        case .namePattern:
+            let name = url.lastPathComponent
+            switch nameOp {
+            case .contains:   return name.localizedCaseInsensitiveContains(namePattern)
+            case .startsWith: return name.lowercased().hasPrefix(namePattern.lowercased())
+            case .endsWith:   return name.lowercased().hasSuffix(namePattern.lowercased())
+            case .matches:
+                guard let rx = try? NSRegularExpression(pattern: namePattern) else { return false }
+                return rx.firstMatch(in: name, range: NSRange(name.startIndex..., in: name)) != nil
+            }
         }
     }
 }
+
+// Keep DateCondition as a typealias so existing callers compile
+typealias DateCondition = FileCondition
 
 // MARK: - Rename Rule
 
@@ -168,9 +240,15 @@ struct ClassifierRule: Codable, Identifiable {
     var id: String          // folder name
     var extensions: [String]
     var keywords: [String]
-    var dateConditions: [DateCondition] = []
+    var conditions: [FileCondition] = []
     var renameRules: [RenameRule] = []
     var moveToTrash: Bool = false
+
+    // Legacy key migration
+    var dateConditions: [FileCondition] {
+        get { conditions }
+        set { conditions = newValue }
+    }
 
     static var defaults: [ClassifierRule] {
         [

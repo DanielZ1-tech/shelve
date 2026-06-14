@@ -99,15 +99,57 @@ struct RulesSettingsTab: View {
 
     @ObservedObject var cfg = ConfigManager.shared
     @State private var selectedID: String? = nil
+    @State private var showingNewRule = false
+    @State private var newRuleName = ""
 
     var body: some View {
         HStack(spacing: 0) {
-            List(cfg.config.rules, id: \.id, selection: $selectedID) { rule in
-                Label(rule.id, systemImage: iconName(for: rule.id))
-                    .tag(rule.id)
+            VStack(spacing: 0) {
+                List(cfg.config.rules, id: \.id, selection: $selectedID) { rule in
+                    Label(rule.id, systemImage: iconName(for: rule.id))
+                        .tag(rule.id)
+                }
+                .listStyle(.sidebar)
+
+                Divider()
+
+                HStack {
+                    Button {
+                        newRuleName = ""
+                        showingNewRule = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .buttonStyle(.plain)
+                    .padding(8)
+
+                    Spacer()
+
+                    if let sid = selectedID {
+                        Button {
+                            cfg.config.rules.removeAll { $0.id == sid }
+                            cfg.save()
+                            selectedID = cfg.config.rules.first?.id
+                        } label: {
+                            Image(systemName: "minus")
+                        }
+                        .buttonStyle(.plain)
+                        .padding(8)
+                    }
+                }
+                .background(Color(NSColor.windowBackgroundColor))
             }
-            .listStyle(.sidebar)
             .frame(width: 160)
+            .sheet(isPresented: $showingNewRule) {
+                NewRuleSheet(name: $newRuleName) { name in
+                    guard !name.isEmpty,
+                          !cfg.config.rules.contains(where: { $0.id == name }) else { return }
+                    let rule = ClassifierRule(id: name, extensions: [], keywords: [])
+                    cfg.config.rules.append(rule)
+                    cfg.save()
+                    selectedID = name
+                }
+            }
 
             Divider()
 
@@ -153,6 +195,48 @@ struct RulesSettingsTab: View {
     }
 }
 
+// MARK: - New Rule Sheet
+
+struct NewRuleSheet: View {
+    @Binding var name: String
+    let onCreate: (String) -> Void
+    @Environment(\.dismiss) var dismiss
+
+    var body: some View {
+        VStack(spacing: 20) {
+            Text("New Rule").font(.headline)
+
+            TextField("Folder name (e.g. Screenshots)", text: $name)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 260)
+                .onSubmit(create)
+
+            Text("Files matched by this rule will be moved to a subfolder with this name.")
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(width: 260)
+
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Create", action: create)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+        }
+        .padding(24)
+        .frame(width: 320)
+    }
+
+    private func create() {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        onCreate(trimmed)
+        dismiss()
+    }
+}
+
 // MARK: - Rule Editor
 
 struct RuleEditorView: View {
@@ -162,7 +246,7 @@ struct RuleEditorView: View {
 
     @State private var extensions: [String]
     @State private var keywords: [String]
-    @State private var dateConditions: [DateCondition]
+    @State private var conditions: [FileCondition]
     @State private var renameRules: [RenameRule]
     @State private var moveToTrash: Bool
     @State private var newExt = ""
@@ -171,11 +255,11 @@ struct RuleEditorView: View {
     init(rule: ClassifierRule, onSave: @escaping (ClassifierRule) -> Void) {
         self.rule   = rule
         self.onSave = onSave
-        _extensions     = State(initialValue: rule.extensions)
-        _keywords       = State(initialValue: rule.keywords)
-        _dateConditions = State(initialValue: rule.dateConditions)
-        _renameRules    = State(initialValue: rule.renameRules)
-        _moveToTrash    = State(initialValue: rule.moveToTrash)
+        _extensions  = State(initialValue: rule.extensions)
+        _keywords    = State(initialValue: rule.keywords)
+        _conditions  = State(initialValue: rule.conditions)
+        _renameRules = State(initialValue: rule.renameRules)
+        _moveToTrash = State(initialValue: rule.moveToTrash)
     }
 
     var body: some View {
@@ -221,23 +305,24 @@ struct RuleEditorView: View {
                     .padding(6)
                 }
 
-                // MARK: Date Conditions
-                GroupBox("Date Conditions") {
+                // MARK: Conditions
+                GroupBox("Conditions") {
                     VStack(alignment: .leading, spacing: 8) {
-                        ForEach(dateConditions.indices, id: \.self) { i in
-                            DateConditionRow(condition: $dateConditions[i]) {
-                                dateConditions.remove(at: i)
+                        ForEach(conditions.indices, id: \.self) { i in
+                            ConditionRow(condition: $conditions[i]) {
+                                conditions.remove(at: i)
                                 save()
                             }
+                            if i < conditions.count - 1 { Divider() }
                         }
                         Button {
-                            dateConditions.append(DateCondition())
+                            conditions.append(FileCondition())
                             save()
                         } label: {
-                            Label("Add Date Condition", systemImage: "plus")
+                            Label("Add Condition", systemImage: "plus")
                         }
-                        if !dateConditions.isEmpty {
-                            Text("File is moved if it matches type/keyword OR any date condition.")
+                        if !conditions.isEmpty {
+                            Text("File moves if it matches an extension or keyword, OR any condition below.")
                                 .font(.system(size: 10))
                                 .foregroundColor(.secondary)
                         }
@@ -302,7 +387,7 @@ struct RuleEditorView: View {
             id: rule.id,
             extensions: extensions,
             keywords: keywords,
-            dateConditions: dateConditions,
+            conditions: conditions,
             renameRules: renameRules,
             moveToTrash: moveToTrash
         ))
@@ -410,50 +495,119 @@ struct TagChip: View {
     }
 }
 
-// MARK: - Date Condition Row
+// MARK: - Condition Row
 
-struct DateConditionRow: View {
-    @Binding var condition: DateCondition
+struct ConditionRow: View {
+    @Binding var condition: FileCondition
     let onRemove: () -> Void
 
     var body: some View {
-        HStack(spacing: 6) {
-            Picker("", selection: $condition.field) {
-                ForEach(DateCondition.DateField.allCases, id: \.self) {
-                    Text($0.rawValue).tag($0)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Picker("", selection: $condition.kind) {
+                    ForEach(FileCondition.Kind.allCases, id: \.self) {
+                        Text($0.rawValue).tag($0)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 200)
+
+                Spacer()
+
+                Button(action: onRemove) {
+                    Image(systemName: "minus.circle.fill").foregroundColor(.red)
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Sub-controls per kind
+            Group {
+                switch condition.kind {
+
+                case .date:
+                    HStack(spacing: 6) {
+                        Picker("", selection: $condition.dateField) {
+                            ForEach(FileCondition.DateField.allCases, id: \.self) {
+                                Text($0.rawValue).tag($0)
+                            }
+                        }.labelsHidden().frame(width: 120)
+
+                        Picker("", selection: $condition.dateOp) {
+                            ForEach(FileCondition.DateOperator.allCases, id: \.self) {
+                                Text($0.rawValue).tag($0)
+                            }
+                        }.labelsHidden().frame(width: 100)
+
+                        TextField("", value: $condition.dateValue, format: .number)
+                            .textFieldStyle(.roundedBorder).frame(width: 44)
+
+                        Picker("", selection: $condition.dateUnit) {
+                            ForEach(FileCondition.DateUnit.allCases, id: \.self) {
+                                Text($0.rawValue).tag($0)
+                            }
+                        }.labelsHidden().frame(width: 70)
+                    }
+
+                case .timeOfDay:
+                    HStack(spacing: 6) {
+                        Text("Between")
+                        Picker("", selection: $condition.timeFrom) {
+                            ForEach(0..<24, id: \.self) { h in
+                                Text(hourLabel(h)).tag(h)
+                            }
+                        }.labelsHidden().frame(width: 80)
+                        Text("and")
+                        Picker("", selection: $condition.timeTo) {
+                            ForEach(0..<24, id: \.self) { h in
+                                Text(hourLabel(h)).tag(h)
+                            }
+                        }.labelsHidden().frame(width: 80)
+                        Text("(based on creation time)")
+                            .font(.system(size: 10)).foregroundColor(.secondary)
+                    }
+
+                case .fromInternet:
+                    Text("Matches files that were downloaded from the web (have quarantine flag).")
+                        .font(.system(size: 11)).foregroundColor(.secondary)
+
+                case .partialDownload:
+                    Text("Matches .crdownload, .download, .part, .tmp and other incomplete files.")
+                        .font(.system(size: 11)).foregroundColor(.secondary)
+
+                case .fileSize:
+                    HStack(spacing: 6) {
+                        Text("Size is")
+                        Picker("", selection: $condition.sizeOp) {
+                            ForEach(FileCondition.SizeOperator.allCases, id: \.self) {
+                                Text($0.rawValue).tag($0)
+                            }
+                        }.labelsHidden().frame(width: 110)
+                        TextField("", value: $condition.sizeMB, format: .number)
+                            .textFieldStyle(.roundedBorder).frame(width: 60)
+                        Text("MB")
+                    }
+
+                case .namePattern:
+                    HStack(spacing: 6) {
+                        Text("Name")
+                        Picker("", selection: $condition.nameOp) {
+                            ForEach(FileCondition.NameOperator.allCases, id: \.self) {
+                                Text($0.rawValue).tag($0)
+                            }
+                        }.labelsHidden().frame(width: 110)
+                        TextField("pattern", text: $condition.namePattern)
+                            .textFieldStyle(.roundedBorder).frame(width: 120)
+                    }
                 }
             }
-            .labelsHidden()
-            .frame(width: 130)
-
-            Picker("", selection: $condition.op) {
-                ForEach(DateCondition.DateOperator.allCases, id: \.self) {
-                    Text($0.rawValue).tag($0)
-                }
-            }
-            .labelsHidden()
-            .frame(width: 110)
-
-            TextField("", value: $condition.value, format: .number)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 44)
-
-            Picker("", selection: $condition.unit) {
-                ForEach(DateCondition.DateUnit.allCases, id: \.self) {
-                    Text($0.rawValue).tag($0)
-                }
-            }
-            .labelsHidden()
-            .frame(width: 70)
-
-            Spacer()
-
-            Button(action: onRemove) {
-                Image(systemName: "minus.circle.fill")
-                    .foregroundColor(.red)
-            }
-            .buttonStyle(.plain)
+            .padding(.leading, 8)
         }
+    }
+
+    private func hourLabel(_ h: Int) -> String {
+        let suffix = h < 12 ? "AM" : "PM"
+        let display = h == 0 ? 12 : (h > 12 ? h - 12 : h)
+        return "\(display):00 \(suffix)"
     }
 }
 
