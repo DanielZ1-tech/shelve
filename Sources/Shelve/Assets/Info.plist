@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>             <string>Shelve</string>
+    <key>CFBundleIdentifier</key>       <string>com.danielzhang.shelve</string>
+    <key>CFBundleVersion</key>          <string>2.0</string>
+    <key>CFBundleShortVersionString</key><string>2.0</string>
+    <key>CFBundleExecutable</key>       <string>Shelve</string>
+    <key>CFBundlePackageType</key>      <string>APPL</string>
+    <key>LSUIElement</key>              <true/>
+    <key>NSHighResolutionCapable</key>  <true/>
+    <key>NSHumanReadableCopyright</key> <string>© 2026 Daniel Zhang</string>
+    <key>NSPrincipalClass</key>         <string>NSApplication</string>
+    <key>CFBundleIconFile</key>         <string>Shelve</string>
+    <!-- Required for file access -->
+    <key>NSDesktopFolderUsageDescription</key>
+    <string>Shelve needs access to organize files on your Desktop.</string>
+    <key>NSDownloadsFolderUsageDescription</key>
+    <string>Shelve needs access to organize your Downloads folder.</string>
+    <key>NSDocumentsFolderUsageDescription</key>
+    <string>Shelve needs access to organize files in Documents.</string>
+</dict>
+</plist>
