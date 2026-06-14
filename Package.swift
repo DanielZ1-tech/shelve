@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "Shelve",
-    platforms: [.macOS(.v26)],
+    platforms: [.macOS(.v13)],
     targets: [
         .executableTarget(
             name: "Shelve",
@@ -13,6 +13,9 @@ let package = Package(
             ],
             swiftSettings: [
                 .swiftLanguageMode(.v5)
+            ],
+            linkerSettings: [
+                .linkedFramework("UserNotifications")
             ]
         )
     ]

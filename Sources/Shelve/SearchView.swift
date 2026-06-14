@@ -19,6 +19,7 @@ struct SearchView: View {
 
     @StateObject private var vm = SearchViewModel()
     @FocusState  private var fieldFocused: Bool
+    @State private var keyMonitor: Any? = nil
 
     private let blue   = Color(red: 0,     green: 0.478, blue: 1)
     private let purple = Color(red: 0.655, green: 0.545, blue: 0.980)
@@ -119,11 +120,42 @@ struct SearchView: View {
         // Real liquid glass — refracts what's behind the window
         .glass(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .background(.clear)
-        .onAppear { fieldFocused = true }
-        .onKeyPress(.upArrow)   { vm.navigate(-1); return .handled }
-        .onKeyPress(.downArrow) { vm.navigate( 1); return .handled }
-        .onKeyPress(.tab)       { vm.toggleMode();  return .handled }
-        .onKeyPress(.escape)    { NSApp.keyWindow?.close(); return .handled }
+        .onAppear {
+            fieldFocused = true
+            if #available(macOS 14, *) { } else {
+                // macOS 13 fallback: NSEvent local monitor for keyboard navigation
+                keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                    switch event.keyCode {
+                    case 125: self.vm.navigate(1);              return nil   // ↓
+                    case 126: self.vm.navigate(-1);             return nil   // ↑
+                    case  48: self.vm.toggleMode();             return nil   // Tab
+                    case  53: NSApp.keyWindow?.close();         return nil   // Esc
+                    default:  return event
+                    }
+                }
+            }
+        }
+        .onDisappear {
+            if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
+        }
+        .applyKeyPressHandlers(vm: vm)
+    }
+}
+
+// MARK: - Key press compatibility (macOS 14+)
+
+private extension View {
+    @ViewBuilder
+    func applyKeyPressHandlers(vm: SearchViewModel) -> some View {
+        if #available(macOS 14, *) {
+            self
+                .onKeyPress(.upArrow)   { vm.navigate(-1); return .handled }
+                .onKeyPress(.downArrow) { vm.navigate( 1); return .handled }
+                .onKeyPress(.tab)       { vm.toggleMode();  return .handled }
+                .onKeyPress(.escape)    { NSApp.keyWindow?.close(); return .handled }
+        } else {
+            self   // handled by NSEvent monitor installed in onAppear
+        }
     }
 }
 

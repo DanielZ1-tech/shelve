@@ -642,7 +642,7 @@ struct SettingsMainView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Shelve")
                                 .font(.system(size: 15, weight: .semibold))
-                            Text("Version 2.1 · Native macOS 26")
+                            Text("Version 2.2 · Requires macOS 13+")
                                 .font(.system(size: 12))
                                 .foregroundColor(.secondary)
                         }

@@ -72,7 +72,7 @@ struct DryRunSheet: View {
                 // List
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(moves) { move in
+                        ForEach(Array(moves.enumerated()), id: \.offset) { _, move in
                             DryRunRow(move: move)
                             Divider().padding(.leading, 54)
                         }

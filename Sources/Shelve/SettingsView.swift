@@ -681,7 +681,7 @@ struct RuleEditorView: View {
                             }
                         }
                     }
-                    .onChange(of: moveToTrash) { _, _ in save() }
+                    .onChange(of: moveToTrash) { _ in save() }
                     .padding(6)
                 }
 
