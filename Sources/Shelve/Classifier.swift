@@ -14,6 +14,7 @@ final class Classifier {
         let ext  = ".\(url.pathExtension.lowercased())"
 
         for rule in config.config.rules {
+            guard rule.isEnabled else { continue }
             if rule.extensions.contains(ext) { return rule }
             if rule.keywords.contains(where: { name.contains($0) }) { return rule }
             if !rule.conditions.isEmpty,

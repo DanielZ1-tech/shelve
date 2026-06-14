@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shelve — Your Downloads, Organized</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a0a;
+    --bg2: #111111;
+    --bg3: #1a1a1a;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0f0f0;
+    --muted: #888;
+    --accent: #6c63ff;
+    --accent2: #a78bfa;
+    --card-bg: rgba(255,255,255,0.04);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px; height: 60px;
+    background: rgba(10,10,10,0.8);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; }
+  .nav-logo .icon { width: 28px; height: 28px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+  .nav-logo .icon svg { width: 16px; height: 16px; fill: white; }
+  .nav-links { display: flex; align-items: center; gap: 32px; font-size: 14px; color: var(--muted); }
+  .nav-links a:hover { color: var(--text); }
+  .nav-cta {
+    background: var(--accent); color: white; padding: 8px 20px;
+    border-radius: 8px; font-size: 14px; font-weight: 500;
+    transition: opacity 0.15s;
+  }
+  .nav-cta:hover { opacity: 0.85; }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 100px 40px 80px;
+    position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
+    width: 800px; height: 800px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(108,99,255,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(108,99,255,0.12); border: 1px solid rgba(108,99,255,0.3);
+    color: var(--accent2); font-size: 13px; padding: 5px 14px; border-radius: 100px;
+    margin-bottom: 32px;
+  }
+  .hero-badge span { width: 6px; height: 6px; background: var(--accent2); border-radius: 50%; }
+  h1 {
+    font-size: clamp(48px, 8vw, 80px);
+    font-weight: 700; letter-spacing: -2px; line-height: 1.05;
+    margin-bottom: 24px;
+  }
+  h1 em { font-style: normal; color: var(--accent2); }
+  .hero-sub {
+    font-size: clamp(16px, 2vw, 20px); color: var(--muted);
+    max-width: 560px; margin: 0 auto 48px;
+  }
+  .hero-actions { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--accent); color: white; padding: 14px 28px;
+    border-radius: 12px; font-size: 16px; font-weight: 600;
+    transition: opacity 0.15s, transform 0.15s;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-primary svg { width: 18px; height: 18px; fill: white; }
+  .btn-ghost {
+    display: inline-flex; align-items: center; gap: 8px;
+    color: var(--muted); font-size: 15px; padding: 14px 20px;
+    border-radius: 12px; border: 1px solid var(--border2);
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.25); }
+  .req { margin-top: 16px; font-size: 13px; color: var(--muted); }
+
+  /* APP PREVIEW */
+  .preview-wrap {
+    width: 100%; max-width: 760px; margin: 64px auto 0;
+    border-radius: 18px; overflow: hidden;
+    border: 1px solid var(--border2);
+    background: var(--bg2);
+    box-shadow: 0 40px 100px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  .preview-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 14px 20px;
+    background: var(--bg3); border-bottom: 1px solid var(--border);
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot.r { background: #ff5f57; }
+  .dot.y { background: #febc2e; }
+  .dot.g { background: #28c840; }
+  .preview-title { flex: 1; text-align: center; font-size: 13px; color: var(--muted); }
+  .preview-body { display: flex; min-height: 340px; }
+  .preview-sidebar {
+    width: 180px; border-right: 1px solid var(--border);
+    padding: 16px 12px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 8px; font-size: 13px;
+    color: var(--muted); cursor: pointer;
+  }
+  .sidebar-item.active {
+    background: rgba(108,99,255,0.15); color: var(--accent2);
+  }
+  .sidebar-icon { font-size: 15px; }
+  .preview-main { flex: 1; padding: 20px; }
+  .preview-search {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 20px;
+  }
+  .preview-search svg { width: 16px; height: 16px; fill: var(--muted); }
+  .preview-search span { font-size: 14px; color: var(--muted); }
+  .file-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: 8px; margin-bottom: 4px;
+    transition: background 0.1s;
+  }
+  .file-row:hover { background: var(--card-bg); }
+  .file-badge {
+    font-size: 10px; font-weight: 700; padding: 3px 7px;
+    border-radius: 5px; letter-spacing: 0.5px; min-width: 38px; text-align: center;
+  }
+  .badge-pdf { background: rgba(220,80,80,0.15); color: #f87171; }
+  .badge-img { background: rgba(80,180,120,0.15); color: #4ade80; }
+  .badge-zip { background: rgba(250,190,60,0.15); color: #fbbf24; }
+  .badge-vid { background: rgba(150,100,250,0.15); color: #c084fc; }
+  .badge-doc { background: rgba(80,160,240,0.15); color: #60a5fa; }
+  .file-info { flex: 1; }
+  .file-name { font-size: 13px; font-weight: 500; }
+  .file-meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .file-folder {
+    font-size: 11px; color: var(--muted);
+    background: var(--bg3); padding: 3px 8px; border-radius: 5px;
+  }
+
+  /* SECTION */
+  section { padding: 100px 40px; max-width: 1100px; margin: 0 auto; }
+  .section-label {
+    font-size: 13px; font-weight: 600; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--accent2);
+    margin-bottom: 16px;
+  }
+  h2 { font-size: clamp(32px, 4vw, 48px); font-weight: 700; letter-spacing: -1px; margin-bottom: 16px; }
+  .section-sub { font-size: 18px; color: var(--muted); max-width: 560px; }
+
+  /* FEATURES */
+  .features-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 16px; margin-top: 56px;
+  }
+  .feature-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .feature-card:hover { border-color: var(--border2); background: rgba(255,255,255,0.06); }
+  .feature-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: rgba(108,99,255,0.15); display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px;
+  }
+  .feature-icon svg { width: 22px; height: 22px; fill: var(--accent2); }
+  .feature-title { font-size: 17px; font-weight: 600; margin-bottom: 8px; }
+  .feature-desc { font-size: 14px; color: var(--muted); line-height: 1.6; }
+
+  /* CONDITIONS */
+  .conditions-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px; margin-top: 48px;
+  }
+  .condition-pill {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px 18px;
+  }
+  .condition-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .condition-text { font-size: 14px; font-weight: 500; }
+  .condition-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* SHORTCUTS */
+  .shortcuts { display: flex; flex-direction: column; gap: 8px; margin-top: 48px; max-width: 480px; }
+  .shortcut-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .shortcut-label { font-size: 14px; color: var(--muted); }
+  .shortcut-keys { display: flex; gap: 4px; }
+  kbd {
+    display: inline-block; padding: 3px 8px; font-size: 12px; font-weight: 500;
+    background: var(--bg3); border: 1px solid var(--border2);
+    border-radius: 5px; font-family: -apple-system, sans-serif; color: var(--text);
+    box-shadow: 0 1px 0 var(--border2);
+  }
+
+  /* INSTALL */
+  .install-card {
+    background: var(--bg2); border: 1px solid var(--border2);
+    border-radius: 20px; padding: 48px; text-align: center; margin-top: 56px;
+  }
+  .install-card h3 { font-size: 28px; font-weight: 700; margin-bottom: 12px; }
+  .install-card p { color: var(--muted); margin-bottom: 32px; font-size: 15px; }
+  .install-steps {
+    display: flex; justify-content: center; gap: 40px; margin-bottom: 40px;
+    flex-wrap: wrap;
+  }
+  .install-step { text-align: center; }
+  .step-num {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(108,99,255,0.15); border: 1px solid rgba(108,99,255,0.3);
+    color: var(--accent2); font-size: 15px; font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 10px;
+  }
+  .step-text { font-size: 13px; color: var(--muted); max-width: 120px; }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border); padding: 40px;
+    display: flex; align-items: center; justify-content: space-between;
+    color: var(--muted); font-size: 13px; flex-wrap: wrap; gap: 16px;
+  }
+  .footer-links { display: flex; gap: 24px; }
+  .footer-links a:hover { color: var(--text); }
+
+  @media (max-width: 680px) {
+    nav { padding: 0 20px; }
+    .nav-links { display: none; }
+    section { padding: 60px 20px; }
+    .preview-sidebar { display: none; }
+    .install-steps { gap: 20px; }
+    footer { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">
+    <div class="icon">
+      <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm2 4h14v2H5v-2zm3 4h8v2H8v-2z"/></svg>
+    </div>
+    Shelve
+  </div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#conditions">Rules</a>
+    <a href="#shortcuts">Shortcuts</a>
+    <a href="https://github.com/DanielZ1-tech/shelve" target="_blank">GitHub</a>
+  </div>
+  <a class="nav-cta" href="https://github.com/DanielZ1-tech/shelve/releases/latest">Download</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge"><span></span> Free &amp; open source · macOS 26+</div>
+  <h1>Your Downloads,<br><em>finally organized.</em></h1>
+  <p class="hero-sub">Shelve lives in your menu bar and automatically sorts, renames, and cleans up your Downloads folder — with rules you control.</p>
+  <div class="hero-actions">
+    <a class="btn-primary" href="https://github.com/DanielZ1-tech/shelve/releases/latest">
+      <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 110 20A10 10 0 0112 2zm0 2a8 8 0 100 16A8 8 0 0012 4zm0 4v5l3 3-1 1-3.5-3.5V8h1.5z" style="fill:none;stroke:white;stroke-width:1.5"/><path d="M12 16l-4-4h3V8h2v4h3l-4 4z"/></svg>
+      Download for Mac
+    </a>
+    <a class="btn-ghost" href="https://github.com/DanielZ1-tech/shelve" target="_blank">
+      View on GitHub →
+    </a>
+  </div>
+  <p class="req">Requires macOS 26 or later · Free forever</p>
+
+  <!-- App Preview -->
+  <div class="preview-wrap">
+    <div class="preview-bar">
+      <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+      <div class="preview-title">Shelve</div>
+    </div>
+    <div class="preview-body">
+      <div class="preview-sidebar">
+        <div class="sidebar-item active"><span class="sidebar-icon">📁</span> Files</div>
+        <div class="sidebar-item"><span class="sidebar-icon">🕐</span> History</div>
+        <div style="margin-top:auto; padding-top:12px; border-top:1px solid rgba(255,255,255,0.06);">
+          <div class="sidebar-item"><span class="sidebar-icon">⚙️</span> Settings</div>
+        </div>
+      </div>
+      <div class="preview-main">
+        <div class="preview-search">
+          <svg viewBox="0 0 24 24"><path d="M11 3a8 8 0 105.657 13.657l4.343 4.343-1.414 1.414-4.343-4.343A8 8 0 0011 3zm0 2a6 6 0 110 12A6 6 0 0111 5z"/></svg>
+          <span>Search your files…</span>
+        </div>
+        <div class="file-row">
+          <div class="file-badge badge-pdf">PDF</div>
+          <div class="file-info">
+            <div class="file-name">Q3_Report_2026.pdf</div>
+            <div class="file-meta">2.4 MB · just now</div>
+          </div>
+          <div class="file-folder">Documents</div>
+        </div>
+        <div class="file-row">
+          <div class="file-badge badge-img">IMG</div>
+          <div class="file-info">
+            <div class="file-name">screenshot_001.png</div>
+            <div class="file-meta">840 KB · 2 min ago</div>
+          </div>
+          <div class="file-folder">Images</div>
+        </div>
+        <div class="file-row">
+          <div class="file-badge badge-zip">ZIP</div>
+          <div class="file-info">
+            <div class="file-name">project-assets.zip</div>
+            <div class="file-meta">18.2 MB · 10 min ago</div>
+          </div>
+          <div class="file-folder">Archives</div>
+        </div>
+        <div class="file-row">
+          <div class="file-badge badge-vid">VID</div>
+          <div class="file-info">
+            <div class="file-name">demo-recording.mp4</div>
+            <div class="file-meta">142 MB · yesterday</div>
+          </div>
+          <div class="file-folder">Videos</div>
+        </div>
+        <div class="file-row">
+          <div class="file-badge badge-doc">DOC</div>
+          <div class="file-info">
+            <div class="file-name">contract_draft_v2.docx</div>
+            <div class="file-meta">380 KB · 2 days ago</div>
+          </div>
+          <div class="file-folder">Documents</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="section-label">Features</div>
+  <h2>Everything your Downloads<br>folder deserves</h2>
+  <p class="section-sub">Set it up once. Shelve runs quietly in the background and keeps things tidy.</p>
+
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2l9 4v6c0 5.25-3.75 10.15-9 11.25C6.75 22.15 3 17.25 3 12V6l9-4z"/></svg>
+      </div>
+      <div class="feature-title">Auto-classify</div>
+      <div class="feature-desc">Watches your Downloads folder and moves files into the right subfolder automatically — PDFs, images, code, videos, and more.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8 13h8v1.5H8V13zm0 3h8v1.5H8V16zm0-6h3v1.5H8V10z"/></svg>
+      </div>
+      <div class="feature-title">Custom rules</div>
+      <div class="feature-desc">Create your own rules with any combination of file types, keywords, date conditions, file size, and name patterns.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm2 4h14v2H5v-2zm3 4h8v2H8v-2z"/></svg>
+      </div>
+      <div class="feature-title">TF-IDF search</div>
+      <div class="feature-desc">Instantly find any organized file with a relevance-ranked search engine built entirely in Swift. No indexing delay.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V9l-6-6H9zM8 17H7v-6h1v6zm4 0h-1v-4h1v4zm4 0h-1v-8h1v8z"/></svg>
+      </div>
+      <div class="feature-title">Auto-rename</div>
+      <div class="feature-desc">Add date prefixes, lowercase filenames, swap spaces for underscores, or add custom prefixes — applied before moving.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M9 3l2 2H5v14h14v-9l2-2V19a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h4zm10.121-.121a1 1 0 010 1.414l-9.9 9.9a1 1 0 01-1.414-1.414l9.9-9.9a1 1 0 011.414 0z"/></svg>
+      </div>
+      <div class="feature-title">Move to Trash</div>
+      <div class="feature-desc">Rules can trash files instead of sorting them. Perfect for auto-deleting old installers, temp files, and failed downloads.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 5v5.25l4 2.37-.75 1.23L11 13V7h1z"/></svg>
+      </div>
+      <div class="feature-title">History &amp; undo</div>
+      <div class="feature-desc">Every move is logged. One click in the menu bar undoes the last action — no digging through folders required.</div>
+    </div>
+  </div>
+</section>
+
+<!-- CONDITIONS -->
+<section id="conditions" style="background: var(--bg2); max-width:100%; padding: 100px 40px;">
+  <div style="max-width:1100px; margin:0 auto;">
+    <div class="section-label">Rule Conditions</div>
+    <h2>Rules that actually make sense</h2>
+    <p class="section-sub">Mix and match conditions to build rules as precise or as broad as you need.</p>
+
+    <div class="conditions-grid">
+      <div class="condition-pill">
+        <div class="condition-dot" style="background:#6c63ff"></div>
+        <div>
+          <div class="condition-text">Date</div>
+          <div class="condition-sub">Older / newer than X days</div>
+        </div>
+      </div>
+      <div class="condition-pill">
+        <div class="condition-dot" style="background:#a78bfa"></div>
+        <div>
+          <div class="condition-text">Time of Day</div>
+          <div class="condition-sub">Created between two hours</div>
+        </div>
+      </div>
+      <div class="condition-pill">
+        <div class="condition-dot" style="background:#34d399"></div>
+        <div>
+          <div class="condition-text">Downloaded from Web</div>
+          <div class="condition-sub">Has browser quarantine flag</div>
+        </div>
+      </div>
+      <div class="condition-pill">
+        <div class="condition-dot" style="background:#f87171"></div>
+        <div>
+          <div class="condition-text">Partial / Failed</div>
+          <div class="condition-sub">.crdownload, .part, .tmp…</div>
+        </div>
+      </div>
+      <div class="condition-pill">
+        <div class="condition-dot" style="background:#fbbf24"></div>
+        <div>
+          <div class="condition-text">File Size</div>
+          <div class="condition-sub">Larger / smaller than X MB</div>
+        </div>
+      </div>
+      <div class="condition-pill">
+        <div class="condition-dot" style="background:#60a5fa"></div>
+        <div>
+          <div class="condition-text">Name Pattern</div>
+          <div class="condition-sub">Contains, regex, prefix…</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SHORTCUTS -->
+<section id="shortcuts">
+  <div class="section-label">Keyboard Shortcuts</div>
+  <h2>Fast by default</h2>
+  <p class="section-sub">Everything in Shelve is reachable from the keyboard.</p>
+
+  <div class="shortcuts">
+    <div class="shortcut-row">
+      <span class="shortcut-label">Open search</span>
+      <div class="shortcut-keys"><kbd>⌘</kbd><kbd>⇧</kbd><kbd>F</kbd></div>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-label">Classify now</span>
+      <div class="shortcut-keys"><kbd>⌘</kbd><kbd>K</kbd></div>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-label">Undo last move</span>
+      <div class="shortcut-keys"><kbd>⌘</kbd><kbd>Z</kbd></div>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-label">Navigate results</span>
+      <div class="shortcut-keys"><kbd>↑</kbd><kbd>↓</kbd></div>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-label">Toggle Files / History</span>
+      <div class="shortcut-keys"><kbd>Tab</kbd></div>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-label">Open in Finder</span>
+      <div class="shortcut-keys"><kbd>↩</kbd></div>
+    </div>
+    <div class="shortcut-row">
+      <span class="shortcut-label">Close search</span>
+      <div class="shortcut-keys"><kbd>⎋</kbd></div>
+    </div>
+  </div>
+</section>
+
+<!-- INSTALL -->
+<section style="max-width:860px; margin:0 auto; padding:0 40px 100px;">
+  <div class="install-card">
+    <h3>Ready in 30 seconds</h3>
+    <p>No sign-up. No subscription. Just download and go.</p>
+    <div class="install-steps">
+      <div class="install-step">
+        <div class="step-num">1</div>
+        <div class="step-text">Download Shelve.zip from GitHub</div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">2</div>
+        <div class="step-text">Unzip and drag to Applications</div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">3</div>
+        <div class="step-text">Right-click → Open on first launch</div>
+      </div>
+      <div class="install-step">
+        <div class="step-num">4</div>
+        <div class="step-text">Done — Shelve runs in your menu bar</div>
+      </div>
+    </div>
+    <a class="btn-primary" href="https://github.com/DanielZ1-tech/shelve/releases/latest" style="display:inline-flex;">
+      <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:white"><path d="M12 16l-6-6h4V4h4v6h4l-6 6zm-7 2h14v2H5v-2z"/></svg>
+      Download Shelve v2.1
+    </a>
+    <p style="margin-top:16px; font-size:13px; color:var(--muted);">macOS 26+ · Free &amp; open source · <a href="https://github.com/DanielZ1-tech/shelve" style="color:var(--accent2);">View source</a></p>
+  </div>
+</section>
+
+<footer>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div style="width:22px;height:22px;background:var(--accent);border-radius:5px;display:flex;align-items:center;justify-content:center;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M3 6h18v2H3V6zm2 4h14v2H5v-2zm3 4h8v2H8v-2z"/></svg>
+    </div>
+    <span>Shelve · Built by Daniel Zhang</span>
+  </div>
+  <div class="footer-links">
+    <a href="https://github.com/DanielZ1-tech/shelve">GitHub</a>
+    <a href="https://github.com/DanielZ1-tech/shelve/releases">Releases</a>
+    <a href="https://github.com/DanielZ1-tech/shelve/issues">Report a bug</a>
+  </div>
+</footer>
+
+</body>
+</html>

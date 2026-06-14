@@ -7,7 +7,6 @@ final class MenuBarManager {
 
     private var statusItem: NSStatusItem!
     private var classifyTimer: Timer?
-    private var settingsWindow: NSWindow?
     private let config  = ConfigManager.shared
     private let watcher = FileWatcher.shared
 
@@ -31,6 +30,7 @@ final class MenuBarManager {
     private func buildMenu() {
         let menu = NSMenu()
 
+        menu.addItem(menuItem("📂  Open Shelve",      action: #selector(openMain),      key: "o", modifiers: [.command]))
         menu.addItem(menuItem("🔍  Search Files…",  action: #selector(openSearch),    key: "f", modifiers: [.command, .shift]))
         menu.addItem(.separator())
         menu.addItem(menuItem("▶  Classify Now",     action: #selector(classifyNow),   key: "k", modifiers: [.command]))
@@ -45,8 +45,6 @@ final class MenuBarManager {
 
         menu.addItem(.separator())
         menu.addItem(menuItem("📁  Open Downloads",  action: #selector(openDownloads), key: ""))
-        menu.addItem(.separator())
-        menu.addItem(menuItem("⚙  Settings…",        action: #selector(openSettings),  key: ","))
         menu.addItem(.separator())
         menu.addItem(menuItem("Quit Shelve",          action: #selector(quit),           key: "q"))
 
@@ -63,6 +61,10 @@ final class MenuBarManager {
     }
 
     // MARK: - Actions
+
+    @objc private func openMain() {
+        MainWindowController.shared.show()
+    }
 
     @objc private func openSearch() {
         SearchPanelController.shared.show()
@@ -87,22 +89,6 @@ final class MenuBarManager {
         let ok = Classifier.shared.undoLastMove()
         notify(title: "Shelve", body: ok ? "Last move undone." : "Nothing to undo.")
         if ok { refreshMenu() }
-    }
-
-    @objc private func openSettings() {
-        if let w = settingsWindow, w.isVisible { w.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); return }
-        let w = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 440),
-            styleMask: [.titled, .closable, .miniaturizable],
-            backing: .buffered, defer: false
-        )
-        w.title = "Shelve Settings"
-        w.center()
-        w.isReleasedWhenClosed = false
-        w.contentView = NSHostingView(rootView: SettingsView())
-        settingsWindow = w
-        w.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
     }
 
     @objc private func openDownloads() {

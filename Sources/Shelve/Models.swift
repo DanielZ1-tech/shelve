@@ -63,6 +63,29 @@ struct FileCondition: Codable, Identifiable {
     var id: UUID = UUID()
     var kind: Kind = .date
 
+    enum CodingKeys: String, CodingKey {
+        case id, kind, dateField, dateOp, dateValue, dateUnit
+        case timeFrom, timeTo, sizeOp, sizeMB, nameOp, namePattern
+    }
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id          = (try? c.decode(UUID.self,          forKey: .id))          ?? UUID()
+        kind        = (try? c.decode(Kind.self,          forKey: .kind))        ?? .date
+        dateField   = (try? c.decode(DateField.self,     forKey: .dateField))   ?? .modified
+        dateOp      = (try? c.decode(DateOperator.self,  forKey: .dateOp))      ?? .olderThan
+        dateValue   = (try? c.decode(Int.self,           forKey: .dateValue))   ?? 30
+        dateUnit    = (try? c.decode(DateUnit.self,      forKey: .dateUnit))    ?? .days
+        timeFrom    = (try? c.decode(Int.self,           forKey: .timeFrom))    ?? 0
+        timeTo      = (try? c.decode(Int.self,           forKey: .timeTo))      ?? 6
+        sizeOp      = (try? c.decode(SizeOperator.self,  forKey: .sizeOp))      ?? .largerThan
+        sizeMB      = (try? c.decode(Double.self,        forKey: .sizeMB))      ?? 100
+        nameOp      = (try? c.decode(NameOperator.self,  forKey: .nameOp))      ?? .contains
+        namePattern = (try? c.decode(String.self,        forKey: .namePattern)) ?? ""
+    }
+
     // MARK: Condition kind
     enum Kind: String, Codable, CaseIterable {
         case date          = "Date"
@@ -187,9 +210,6 @@ struct FileCondition: Codable, Identifiable {
     }
 }
 
-// Keep DateCondition as a typealias so existing callers compile
-typealias DateCondition = FileCondition
-
 // MARK: - Rename Rule
 
 struct RenameRule: Codable, Identifiable {
@@ -237,17 +257,49 @@ struct RenameRule: Codable, Identifiable {
 // MARK: - Classifier Rule
 
 struct ClassifierRule: Codable, Identifiable {
-    var id: String          // folder name
+    var id: String
     var extensions: [String]
     var keywords: [String]
     var conditions: [FileCondition] = []
-    var renameRules: [RenameRule] = []
-    var moveToTrash: Bool = false
+    var renameRules: [RenameRule]   = []
+    var moveToTrash: Bool           = false
+    var isEnabled: Bool             = true
 
-    // Legacy key migration
-    var dateConditions: [FileCondition] {
-        get { conditions }
-        set { conditions = newValue }
+    enum CodingKeys: String, CodingKey {
+        case id, extensions, keywords, conditions, dateConditions
+        case renameRules, moveToTrash, isEnabled
+    }
+
+    init(id: String, extensions: [String], keywords: [String],
+         conditions: [FileCondition] = [], renameRules: [RenameRule] = [],
+         moveToTrash: Bool = false, isEnabled: Bool = true) {
+        self.id = id; self.extensions = extensions; self.keywords = keywords
+        self.conditions = conditions; self.renameRules = renameRules
+        self.moveToTrash = moveToTrash; self.isEnabled = isEnabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id          = try  c.decode(String.self,          forKey: .id)
+        extensions  = (try? c.decode([String].self,       forKey: .extensions))  ?? []
+        keywords    = (try? c.decode([String].self,       forKey: .keywords))    ?? []
+        conditions  = (try? c.decode([FileCondition].self, forKey: .conditions))
+                   ?? (try? c.decode([FileCondition].self, forKey: .dateConditions))
+                   ?? []
+        renameRules = (try? c.decode([RenameRule].self,   forKey: .renameRules)) ?? []
+        moveToTrash = (try? c.decode(Bool.self,           forKey: .moveToTrash)) ?? false
+        isEnabled   = (try? c.decode(Bool.self,           forKey: .isEnabled))   ?? true
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id,          forKey: .id)
+        try c.encode(extensions,  forKey: .extensions)
+        try c.encode(keywords,    forKey: .keywords)
+        try c.encode(conditions,  forKey: .conditions)
+        try c.encode(renameRules, forKey: .renameRules)
+        try c.encode(moveToTrash, forKey: .moveToTrash)
+        try c.encode(isEnabled,   forKey: .isEnabled)
     }
 
     static var defaults: [ClassifierRule] {

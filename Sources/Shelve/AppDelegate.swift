@@ -22,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         MenuDelegate.shared.onWillOpen = { [weak self] in
             self?.menuBar.refreshMenu()
         }
+        MainWindowController.shared.show()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ app: NSApplication) -> Bool { false }
