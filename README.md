@@ -1,62 +1,93 @@
-# Shelve — Native macOS App
+# Shelve
 
-Full Swift rewrite of the Shelve Downloads organizer.  
-Replaces all Python/tkinter/rumps code with native AppKit + SwiftUI.
+A native macOS menu bar app that automatically organizes your Downloads folder. Built entirely in Swift and SwiftUI — no Python, no Electron.
 
-## Open in Xcode
+![macOS](https://img.shields.io/badge/macOS-26+-black) ![Swift](https://img.shields.io/badge/Swift-6.2-orange) ![License](https://img.shields.io/badge/license-MIT-blue)
 
-1. Open Xcode
-2. File → Open → select the `shelve-native` folder (Xcode detects Package.swift automatically)
-3. Set the scheme target to **Shelve** and destination to **My Mac**
-4. ⌘R to run
+---
 
-## What's in here
+## Features
 
-| File | Replaces |
-|------|----------|
-| `AppDelegate.swift` | app entry point |
-| `MenuBarManager.swift` | `menubar.py` (rumps) |
-| `SearchPanel.swift` | `search_window.py` (tkinter NSPanel wrapper) |
-| `SearchView.swift` | `search_window.py` (SwiftUI UI — **fixes typing**) |
-| `SearchEngine.swift` | `search.py` (TF-IDF in pure Swift) |
-| `Classifier.swift` | `classifier.py` (rule-based, extension + keyword) |
-| `FileWatcher.swift` | Python `watchdog` (FSEvents native) |
-| `Config.swift` | `classifier_config.py` (JSON in ~/Library/Application Support/Shelve) |
-| `Models.swift` | shared data types |
+- **Auto-classify** — watches your Downloads folder and sorts files into subfolders automatically
+- **Smart rules** — match by file extension, keyword, or date (older than X days, newer than X weeks, etc.)
+- **Auto-rename** — add date prefixes, lowercase filenames, replace spaces, add custom prefixes/suffixes
+- **Move to Trash** — rules can trash files instead of sorting them (great for old installers)
+- **TF-IDF search** — fast full-text search across all your organized files
+- **History mode** — see every move Shelve has made, with one-click undo
+- **Setup wizard** — first-launch onboarding to get you configured in seconds
+- **Liquid Glass UI** — native macOS 26 design language throughout
 
-## Why the search bar now works
+---
 
-The old `search_window.py` used `overrideredirect(True)` on a tkinter window to 
-get a borderless look. On macOS, that makes the window non-activatable — it can 
-never receive keyboard focus no matter how many `focus_force()` calls you make.
+## Getting Started
 
-The fix: use a native `NSPanel` with `becomesKeyOnlyIfNeeded = false` and call 
-`makeKey()` after ordering front. Native windows handle focus correctly by design.
+### Requirements
 
-## Keyboard shortcuts
+- macOS 26+
+- Xcode 16+
+
+### Run in Xcode
+
+1. Clone the repo and open the `shelve-native` folder in Xcode (it detects `Package.swift` automatically)
+2. Set the scheme to **Shelve** and destination to **My Mac**
+3. Hit **⌘R**
+
+### Build a distributable .app
+
+```bash
+# After building in Xcode (⌘B):
+./build-app.sh
+```
+
+Drag `Shelve.app` to `/Applications`.
+
+---
+
+## Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
 | ⌘⇧F | Open search |
 | ⌘K | Classify now |
 | ⌘Z | Undo last move |
-| ↑↓ | Navigate results |
-| Tab | Switch Files/History mode |
+| ↑ ↓ | Navigate results |
+| Tab | Toggle Files / History |
 | ↩ | Open in Finder |
 | ⎋ | Close search |
 
+---
+
+## How Rules Work
+
+Each rule has:
+- **Extensions** — e.g. `.pdf`, `.docx`
+- **Keywords** — matched against the filename
+- **Date conditions** — e.g. "modified older than 30 days"
+- **Rename steps** — applied in order before moving
+- **Move to Trash** — trashes the file instead of sorting it
+
+A file is moved if it matches an extension or keyword **or** any date condition. Rules are fully editable in **Settings → Rules**.
+
+---
+
 ## Config
 
-Stored at: `~/Library/Application Support/Shelve/config.json`
+Stored at `~/Library/Application Support/Shelve/config.json`. Editable via the Settings window (menu bar icon → Settings).
 
-```json
-{
-  "watchDirs": ["~/Downloads"],
-  "autoClassify": true,
-  "classifyInterval": 60
-}
-```
+---
 
-## Build a distributable .app
+## Project Structure
 
-Product → Archive in Xcode, then Distribute App → Direct Distribution.
+| File | Purpose |
+|------|---------|
+| `AppDelegate.swift` | App entry point, setup wizard gate |
+| `MenuBarManager.swift` | Menu bar icon and menu |
+| `SearchPanel.swift` | Native `NSPanel` for the search window |
+| `SearchView.swift` | SwiftUI search UI |
+| `SearchEngine.swift` | TF-IDF search in pure Swift |
+| `Classifier.swift` | Rule matching, file moves, trash, rename |
+| `FileWatcher.swift` | FSEvents-based folder watching |
+| `Config.swift` | JSON config persistence |
+| `Models.swift` | Shared data types |
+| `SetupWizard.swift` | First-launch onboarding flow |
+| `SettingsView.swift` | Settings window (General, Rules, About) |
