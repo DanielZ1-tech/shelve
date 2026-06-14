@@ -141,13 +141,13 @@ struct RulesSettingsTab: View {
             }
             .frame(width: 160)
             .sheet(isPresented: $showingNewRule) {
-                NewRuleSheet(name: $newRuleName) { name in
-                    guard !name.isEmpty,
-                          !cfg.config.rules.contains(where: { $0.id == name }) else { return }
-                    let rule = ClassifierRule(id: name, extensions: [], keywords: [])
+                NewRuleSheet(
+                    name: $newRuleName,
+                    existingNames: cfg.config.rules.map(\.id)
+                ) { rule in
                     cfg.config.rules.append(rule)
                     cfg.save()
-                    selectedID = name
+                    selectedID = rule.id
                 }
             }
 
@@ -199,40 +199,351 @@ struct RulesSettingsTab: View {
 
 struct NewRuleSheet: View {
     @Binding var name: String
-    let onCreate: (String) -> Void
+    let existingNames: [String]
+    let onCreate: (ClassifierRule) -> Void
     @Environment(\.dismiss) var dismiss
 
+    @State private var extensions: [String] = []
+    @State private var keywords:   [String] = []
+    @State private var conditions: [FileCondition] = []
+    @State private var newExt      = ""
+    @State private var moveToTrash = false
+    @State private var aiPrompt    = ""
+    @State private var isGenerating = false
+    @State private var parsedSummary: [String] = []
+    @State private var activeTab   = 0   // 0 = Smart, 1 = Manual
+
+    private var isDuplicate: Bool { existingNames.contains(name.trimmingCharacters(in: .whitespaces)) }
+    private var isValid: Bool { !name.trimmingCharacters(in: .whitespaces).isEmpty && !isDuplicate }
+
+    private let presets: [(label: String, icon: String, folder: String, exts: [String])] = [
+        ("Documents",  "doc.fill",          "Documents",  [".pdf",".doc",".docx",".txt",".pages",".md"]),
+        ("Images",     "photo.fill",         "Images",     [".jpg",".jpeg",".png",".gif",".webp",".heic"]),
+        ("Videos",     "film.fill",          "Videos",     [".mp4",".mov",".avi",".mkv",".m4v"]),
+        ("Audio",      "music.note",         "Audio",      [".mp3",".wav",".aac",".flac",".m4a"]),
+        ("Archives",   "archivebox.fill",    "Archives",   [".zip",".tar",".gz",".rar",".7z"]),
+        ("Code",       "chevron.left.forwardslash.chevron.right","Code",[".py",".js",".ts",".swift",".sh",".go"]),
+        ("Installers", "shippingbox.fill",   "Installers", [".dmg",".pkg"]),
+        ("Design",     "paintpalette.fill",  "Design",     [".psd",".ai",".sketch",".fig",".xd"]),
+        ("Ebooks",     "book.fill",          "Ebooks",     [".epub",".mobi",".azw"]),
+        ("3D",         "cube.fill",          "3D",         [".stl",".obj",".fbx",".blend"]),
+        ("Spreadsheets","tablecells.fill",   "Spreadsheets",[".xlsx",".csv",".numbers"]),
+        ("Fonts",      "textformat",         "Fonts",      [".ttf",".otf",".woff",".woff2"]),
+    ]
+
     var body: some View {
-        VStack(spacing: 20) {
-            Text("New Rule").font(.headline)
+        VStack(spacing: 0) {
 
-            TextField("Folder name (e.g. Screenshots)", text: $name)
-                .textFieldStyle(.roundedBorder)
-                .frame(width: 260)
-                .onSubmit(create)
-
-            Text("Files matched by this rule will be moved to a subfolder with this name.")
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(width: 260)
-
+            // ── Header ───────────────────────────────────────────────────────
             HStack {
-                Button("Cancel") { dismiss() }
-                    .keyboardShortcut(.cancelAction)
-                Button("Create", action: create)
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
+                Text("New Rule")
+                    .font(.title3.bold())
+                Spacer()
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                        .font(.system(size: 18))
+                }
+                .buttonStyle(.plain)
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 18)
+            .padding(.bottom, 12)
+
+            // ── Tab picker ───────────────────────────────────────────────────
+            Picker("", selection: $activeTab) {
+                Label("Smart", systemImage: "sparkles").tag(0)
+                Label("Manual", systemImage: "slider.horizontal.3").tag(1)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 12)
+
+            Divider()
+
+            if activeTab == 0 {
+                smartTab
+            } else {
+                manualTab
+            }
+
+            Divider()
+
+            // ── Footer ───────────────────────────────────────────────────────
+            HStack(spacing: 12) {
+                // Preview
+                if isValid {
+                    HStack(spacing: 5) {
+                        Image(systemName: moveToTrash ? "trash.fill" : "folder.fill")
+                            .foregroundColor(moveToTrash ? .red : .accentColor)
+                            .font(.system(size: 11))
+                        Text(moveToTrash ? "Trash" : name.trimmingCharacters(in: .whitespaces))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(moveToTrash ? .red : .accentColor)
+                        if !extensions.isEmpty {
+                            Text("·")
+                                .foregroundColor(.secondary)
+                            Text(extensions.prefix(3).joined(separator: " "))
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                } else if isDuplicate {
+                    Label("Name already used", systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(.orange)
+                }
+                Spacer()
+                Button("Create Rule", action: create)
+                    .keyboardShortcut(.defaultAction)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!isValid)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 12)
         }
-        .padding(24)
-        .frame(width: 320)
+        .frame(width: 480, height: 540)
+    }
+
+    // MARK: - Smart Tab
+
+    private var smartTab: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+
+                // AI prompt
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Describe your rule in plain English")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
+
+                    HStack(spacing: 8) {
+                        Image(systemName: "sparkles")
+                            .foregroundColor(.purple)
+                        TextField("e.g. trash big installers, move old PDFs to Archive…", text: $aiPrompt)
+                            .textFieldStyle(.plain)
+                            .font(.system(size: 13))
+                            .onSubmit(parseAI)
+                        if isGenerating {
+                            ProgressView().scaleEffect(0.7)
+                        } else {
+                            Button("Parse") { parseAI() }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                                .disabled(aiPrompt.trimmingCharacters(in: .whitespaces).isEmpty)
+                        }
+                    }
+                    .padding(10)
+                    .background(RoundedRectangle(cornerRadius: 9).fill(Color.purple.opacity(0.07)))
+                    .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.purple.opacity(0.2)))
+
+                    // Example chips
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach([
+                                "trash installers > 200MB",
+                                "old PDFs to Archive",
+                                "images from internet",
+                                "partial downloads",
+                                "large videos",
+                                "files before 6am",
+                                "receipts and invoices",
+                                "design files to Design",
+                            ], id: \.self) { ex in
+                                Button { aiPrompt = ex; parseAI() } label: {
+                                    Text(ex)
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.purple)
+                                        .padding(.horizontal, 9)
+                                        .padding(.vertical, 4)
+                                        .background(Capsule().fill(Color.purple.opacity(0.08)))
+                                        .overlay(Capsule().strokeBorder(Color.purple.opacity(0.2)))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+
+                // Parsed result
+                if !parsedSummary.isEmpty || isValid {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Result")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.secondary)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            // Folder name
+                            HStack {
+                                Label("Folder", systemImage: "folder.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                                    .frame(width: 80, alignment: .leading)
+                                TextField("Folder name", text: $name)
+                                    .textFieldStyle(.roundedBorder)
+                                    .font(.system(size: 12))
+                            }
+
+                            if !parsedSummary.isEmpty {
+                                Divider()
+                                ForEach(parsedSummary, id: \.self) { line in
+                                    Text(line)
+                                        .font(.system(size: 12))
+                                }
+                            }
+
+                            if !extensions.isEmpty {
+                                Divider()
+                                Text("Extensions")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundColor(.secondary)
+                                TagWrapView(tags: extensions) { tag in
+                                    extensions.removeAll { $0 == tag }
+                                }
+                            }
+
+                            if !keywords.isEmpty {
+                                Divider()
+                                Text("Keywords (filename must contain one)")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundColor(.secondary)
+                                TagWrapView(tags: keywords) { tag in
+                                    keywords.removeAll { $0 == tag }
+                                }
+                            }
+                        }
+                        .padding(12)
+                        .background(RoundedRectangle(cornerRadius: 10).fill(Color.secondary.opacity(0.05)))
+                        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.secondary.opacity(0.12)))
+                    }
+                }
+
+                if isDuplicate {
+                    Label("A rule named \"\(name.trimmingCharacters(in: .whitespaces))\" already exists.", systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 11))
+                        .foregroundColor(.orange)
+                }
+            }
+            .padding(20)
+        }
+    }
+
+    // MARK: - Manual Tab
+
+    private var manualTab: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+
+                // Folder name
+                VStack(alignment: .leading, spacing: 6) {
+                    Label("Folder Name", systemImage: "folder.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
+                    TextField("e.g. Screenshots", text: $name)
+                        .textFieldStyle(.roundedBorder)
+                    if isDuplicate {
+                        Label("Already exists", systemImage: "exclamationmark.triangle.fill")
+                            .font(.system(size: 11)).foregroundColor(.orange)
+                    }
+                }
+
+                // Presets
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Quick Presets")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
+                    let cols = Array(repeating: GridItem(.flexible(), spacing: 6), count: 4)
+                    LazyVGrid(columns: cols, spacing: 6) {
+                        ForEach(presets, id: \.folder) { p in
+                            Button {
+                                name = p.folder; extensions = p.exts
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Image(systemName: p.icon)
+                                        .font(.system(size: 15))
+                                        .foregroundColor(name == p.folder ? .white : .accentColor)
+                                    Text(p.label)
+                                        .font(.system(size: 10))
+                                        .foregroundColor(name == p.folder ? .white : .primary)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(RoundedRectangle(cornerRadius: 8)
+                                    .fill(name == p.folder ? Color.accentColor : Color.secondary.opacity(0.07)))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+
+                // Extensions
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("File Extensions")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
+                    if !extensions.isEmpty {
+                        TagWrapView(tags: extensions) { tag in extensions.removeAll { $0 == tag } }
+                    }
+                    HStack {
+                        TextField(".ext", text: $newExt)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                            .onSubmit(addExt)
+                        Button("Add", action: addExt)
+                            .disabled(newExt.trimmingCharacters(in: .whitespaces).isEmpty)
+                        Spacer()
+                    }
+                }
+
+                // Trash toggle
+                Toggle(isOn: $moveToTrash) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "trash.fill")
+                            .foregroundColor(moveToTrash ? .red : .secondary)
+                        Text("Trash matched files instead of moving")
+                            .font(.system(size: 13))
+                    }
+                }
+            }
+            .padding(20)
+        }
+    }
+
+    // MARK: - Actions
+
+    private func addExt() {
+        var e = newExt.trimmingCharacters(in: .whitespaces).lowercased()
+        if !e.hasPrefix(".") { e = "." + e }
+        guard e != ".", !extensions.contains(e) else { return }
+        extensions.append(e)
+        newExt = ""
+    }
+
+    private func parseAI() {
+        let prompt = aiPrompt.trimmingCharacters(in: .whitespaces)
+        guard !prompt.isEmpty else { return }
+        isGenerating = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            let result   = AIRuleCreator.parse(prompt)
+            name         = result.folderName
+            extensions   = result.extensions.sorted()
+            keywords     = result.keywords
+            conditions   = result.conditions
+            moveToTrash  = result.moveToTrash
+            parsedSummary = result.summary
+            aiPrompt     = ""
+            isGenerating = false
+        }
     }
 
     private func create() {
-        let trimmed = name.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty else { return }
-        onCreate(trimmed)
+        let folderName = name.trimmingCharacters(in: .whitespaces)
+        guard !folderName.isEmpty else { return }
+        var rule = ClassifierRule(id: folderName, extensions: Array(Set(extensions)),
+                                  keywords: keywords, conditions: conditions)
+        rule.moveToTrash = moveToTrash
+        onCreate(rule)
+        name = ""; extensions = []; keywords = []; conditions = []; parsedSummary = []
         dismiss()
     }
 }

@@ -5,12 +5,14 @@ import AppKit
 
 enum MainSection: String, CaseIterable, Identifiable {
     case rules    = "Rules"
+    case stats    = "Stats"
     case history  = "History"
     case settings = "Settings"
     var id: String { rawValue }
     var icon: String {
         switch self {
         case .rules:    return "folder.badge.gearshape"
+        case .stats:    return "chart.bar.fill"
         case .history:  return "clock.arrow.circlepath"
         case .settings: return "gearshape"
         }
@@ -34,6 +36,7 @@ struct MainView: View {
 
             ZStack {
                 RulesMainView()   .opacity(section == .rules    ? 1 : 0)
+                StatsMainView()   .opacity(section == .stats    ? 1 : 0)
                 HistoryMainView() .opacity(section == .history  ? 1 : 0)
                 SettingsMainView().opacity(section == .settings ? 1 : 0)
             }
@@ -139,6 +142,7 @@ struct RulesMainView: View {
     @State private var isGenerating = false
     @State private var aiError: String? = nil
     @State private var showNewRuleSheet = false
+    @State private var showDryRunSheet = false
     @State private var newRuleName = ""
 
     private let hints = [
@@ -235,6 +239,13 @@ struct RulesMainView: View {
 
                     Spacer()
 
+                    Button { showDryRunSheet = true } label: {
+                        Image(systemName: "play.circle")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Test Rules (dry run)")
+
                     if let sid = selectedID,
                        cfg.config.rules.contains(where: { $0.id == sid }) {
                         Button {
@@ -254,13 +265,17 @@ struct RulesMainView: View {
             }
             .frame(minWidth: 216, idealWidth: 216, maxWidth: 216, maxHeight: .infinity)
             .sheet(isPresented: $showNewRuleSheet) {
-                NewRuleSheet(name: $newRuleName) { name in
-                    guard !name.isEmpty,
-                          !cfg.config.rules.contains(where: { $0.id == name }) else { return }
-                    cfg.config.rules.append(ClassifierRule(id: name, extensions: [], keywords: []))
+                NewRuleSheet(
+                    name: $newRuleName,
+                    existingNames: cfg.config.rules.map(\.id)
+                ) { rule in
+                    cfg.config.rules.append(rule)
                     cfg.save()
-                    selectedID = name
+                    selectedID = rule.id
                 }
+            }
+            .sheet(isPresented: $showDryRunSheet) {
+                DryRunSheet()
             }
 
             // ── Right column: editor ────────────────────────────────────────
@@ -295,12 +310,13 @@ struct RulesMainView: View {
         guard !prompt.isEmpty else { return }
         isGenerating = true
         aiError = nil
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            let rule = AIRuleCreator.createRule(from: prompt)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            let result = AIRuleCreator.parse(prompt)
+            let rule   = result.rule
             cfg.config.rules.append(rule)
             cfg.save()
             selectedID = rule.id
-            aiPrompt = ""
+            aiPrompt   = ""
             isGenerating = false
         }
     }
@@ -567,6 +583,24 @@ struct SettingsMainView: View {
                                     .font(.system(size: 13))
                             }
                         }
+
+                        Divider()
+
+                        Toggle("Notify when files are moved", isOn: Binding(
+                            get: { NotificationManager.shared.isEnabled },
+                            set: { enabled in
+                                if enabled {
+                                    NotificationManager.shared.requestPermission { granted in
+                                        NotificationManager.shared.isEnabled = granted
+                                    }
+                                } else {
+                                    NotificationManager.shared.isEnabled = false
+                                }
+                            }
+                        ))
+                        Text("macOS notifications appear when Shelve moves files automatically.")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
                     }
                     .padding(10)
                 }

@@ -77,17 +77,20 @@ final class MenuBarManager {
             DispatchQueue.main.async {
                 self?.statusItem.button?.title = "📂"
                 self?.refreshMenu()
-                let n = moves.count
-                self?.notify(title: "Shelve", body: n > 0
-                    ? "Moved \(n) file\(n == 1 ? "" : "s")"
-                    : "Nothing to classify right now.")
+                // macOS notification (if permission granted)
+                if moves.isEmpty {
+                    self?.flashStatus(body: "Nothing to classify")
+                } else {
+                    NotificationManager.shared.notifyMoves(moves)
+                    self?.flashStatus(body: "Moved \(moves.count) file\(moves.count == 1 ? "" : "s")")
+                }
             }
         }
     }
 
     @objc private func undoLast() {
         let ok = Classifier.shared.undoLastMove()
-        notify(title: "Shelve", body: ok ? "Last move undone." : "Nothing to undo.")
+        flashStatus(body: ok ? "Last move undone." : "Nothing to undo.")
         if ok { refreshMenu() }
     }
 
@@ -152,17 +155,11 @@ final class MenuBarManager {
         }
     }
 
-    // MARK: - Notification (title flash — no bundle ID required)
+    // MARK: - Status bar flash
 
-    private func notify(title: String, body: String) {
-        let original = statusItem.button?.title ?? "📂"
-        // Show a checkmark briefly, then restore
-        DispatchQueue.main.async { [weak self] in
-            self?.statusItem.button?.title = "✓"
-            self?.statusItem.button?.toolTip = body
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
-            self?.statusItem.button?.title = original
+    private func flashStatus(body: String) {
+        statusItem.button?.toolTip = body
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
             self?.statusItem.button?.toolTip = nil
         }
     }

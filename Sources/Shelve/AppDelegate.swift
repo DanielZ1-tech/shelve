@@ -7,6 +7,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let menuBar = MenuBarManager()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Register the Finder Quick Action service provider
+        NSApp.servicesProvider = ServiceProvider.shared
+        NSUpdateDynamicServices()
+
+        // Request notification permission (non-blocking; user sees system prompt once)
+        NotificationManager.shared.requestPermission()
+
         if SetupWizardController.needsSetup {
             SetupWizardController.shared.show {
                 self.startMenuBar()
