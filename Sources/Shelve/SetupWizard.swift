@@ -30,8 +30,6 @@ final class SetupWizardController {
             SetupWizardView {
                 UserDefaults.standard.set(true, forKey: "shelve.setupComplete")
                 w.close()
-                // Back to menu-bar-only mode
-                NSApp.setActivationPolicy(.accessory)
                 onComplete()
             }
         )
@@ -48,8 +46,9 @@ private struct SetupWizardView: View {
     let onFinish: () -> Void
 
     @State private var step = 0
-    @State private var watchPath = FileManager.default
-        .homeDirectoryForCurrentUser.appendingPathComponent("Downloads").path
+    @State private var watchPaths: [String] = [
+        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads").path
+    ]
     @State private var autoClassify = true
     @State private var interval = 60
 
@@ -81,7 +80,7 @@ private struct SetupWizardView: View {
                 Group {
                     switch step {
                     case 0: WelcomeStep()
-                    case 1: FolderStep(watchPath: $watchPath)
+                    case 1: FolderStep(watchPaths: $watchPaths)
                     case 2: AutoClassifyStep(autoClassify: $autoClassify, interval: $interval)
                     default: DoneStep()
                     }
@@ -121,9 +120,9 @@ private struct SetupWizardView: View {
 
     private func applySettings() {
         var cfg = ConfigManager.shared.config
-        if !cfg.watchDirs.contains(watchPath) {
-            cfg.watchDirs = [watchPath]
-        }
+        cfg.watchDirs = watchPaths.isEmpty
+            ? [FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Downloads").path]
+            : watchPaths
         cfg.autoClassify = autoClassify
         cfg.classifyInterval = interval
         ConfigManager.shared.config = cfg
@@ -151,46 +150,120 @@ private struct WelcomeStep: View {
 }
 
 private struct FolderStep: View {
-    @Binding var watchPath: String
+    @Binding var watchPaths: [String]
 
-    var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "folder.fill.badge.plus")
-                .font(.system(size: 48))
-                .foregroundStyle(.white)
-            Text("Choose a folder to watch")
-                .font(.system(size: 22, weight: .bold))
-                .foregroundStyle(.white)
-            Text("Shelve will monitor this folder and organize\nnew files as they arrive.")
-                .font(.system(size: 13))
-                .foregroundStyle(.white.opacity(0.7))
-                .multilineTextAlignment(.center)
-
-            HStack {
-                Text((watchPath as NSString).abbreviatingWithTildeInPath)
-                    .font(.system(size: 13, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.9))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Spacer()
-                Button("Change…") { pickFolder() }
-                    .buttonStyle(WizardSecondaryButton())
-            }
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: 10).fill(.white.opacity(0.08)))
-            .padding(.horizontal, 48)
-        }
-        .padding(.horizontal, 48)
+    private let home = FileManager.default.homeDirectoryForCurrentUser.path
+    private var presets: [(label: String, icon: String, path: String)] {
+        [
+            ("Downloads", "arrow.down.circle.fill",
+             (home as NSString).appendingPathComponent("Downloads")),
+            ("Desktop",   "desktopcomputer",
+             (home as NSString).appendingPathComponent("Desktop")),
+            ("Documents", "doc.fill",
+             (home as NSString).appendingPathComponent("Documents")),
+        ]
     }
 
-    private func pickFolder() {
+    var body: some View {
+        VStack(spacing: 18) {
+            Image(systemName: "folder.fill.badge.plus")
+                .font(.system(size: 44))
+                .foregroundStyle(.white)
+
+            Text("Which folders should Shelve watch?")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(.white)
+
+            Text("Shelve monitors these folders and organizes new files automatically. You can change this later.")
+                .font(.system(size: 12))
+                .foregroundStyle(.white.opacity(0.6))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+
+            // Preset toggles
+            VStack(spacing: 8) {
+                ForEach(presets, id: \.path) { preset in
+                    let on = watchPaths.contains(preset.path)
+                    Button {
+                        if on { watchPaths.removeAll { $0 == preset.path } }
+                        else  { watchPaths.append(preset.path) }
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: preset.icon)
+                                .font(.system(size: 16))
+                                .foregroundStyle(on ? .white : .white.opacity(0.5))
+                                .frame(width: 22)
+                            Text(preset.label)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(on ? .white : .white.opacity(0.6))
+                            Spacer()
+                            Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                                .foregroundStyle(on ? Color.green : .white.opacity(0.3))
+                                .font(.system(size: 18))
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 11)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(on ? .white.opacity(0.14) : .white.opacity(0.05))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 40)
+
+            // Custom folders added by picker
+            let customs = watchPaths.filter { path in !presets.map(\.path).contains(path) }
+            if !customs.isEmpty {
+                VStack(spacing: 6) {
+                    ForEach(customs, id: \.self) { path in
+                        HStack(spacing: 10) {
+                            Image(systemName: "folder.fill")
+                                .foregroundStyle(.white.opacity(0.7))
+                            Text((path as NSString).abbreviatingWithTildeInPath)
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundStyle(.white.opacity(0.8))
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Spacer()
+                            Button {
+                                watchPaths.removeAll { $0 == path }
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.white.opacity(0.4))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(0.06)))
+                    }
+                }
+                .padding(.horizontal, 40)
+            }
+
+            // Add custom button
+            Button(action: pickCustomFolder) {
+                Label("Add Custom Folder…", systemImage: "plus")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.6))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func pickCustomFolder() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.prompt = "Watch This Folder"
-        if panel.runModal() == .OK, let url = panel.url {
-            watchPath = url.path
+        panel.allowsMultipleSelection = true
+        panel.prompt = "Watch These Folders"
+        if panel.runModal() == .OK {
+            for url in panel.urls {
+                let path = url.path
+                if !watchPaths.contains(path) { watchPaths.append(path) }
+            }
         }
     }
 }

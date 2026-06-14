@@ -23,9 +23,11 @@ struct MainView: View {
     @State private var section: MainSection = .rules
 
     var body: some View {
-        HStack(spacing: 0) {
+        HSplitView {
             SidebarView(section: $section)
-            Divider()
+                .frame(minWidth: 196, idealWidth: 196, maxWidth: 196)
+                .background(Color(NSColor.controlBackgroundColor))
+
             Group {
                 switch section {
                 case .rules:    RulesMainView()
@@ -33,10 +35,9 @@ struct MainView: View {
                 case .settings: SettingsMainView()
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(minWidth: 620, maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(minWidth: 820, minHeight: 500)
-        .background(Color(NSColor.windowBackgroundColor))
+        .frame(minWidth: 860, minHeight: 520)
     }
 }
 
@@ -48,70 +49,82 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+
             // App header
             HStack(spacing: 10) {
                 Image(nsImage: NSApp.applicationIconImage)
                     .resizable()
                     .interpolation(.high)
-                    .frame(width: 34, height: 34)
+                    .frame(width: 36, height: 36)
                     .cornerRadius(8)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Shelve").font(.system(size: 14, weight: .semibold))
-                    Text("v2.1").font(.system(size: 11)).foregroundColor(.secondary)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 22)
-            .padding(.bottom, 14)
-
-            Divider()
-
-            // Nav
-            VStack(spacing: 2) {
-                ForEach(MainSection.allCases) { s in
-                    Button(action: { section = s }) {
-                        HStack(spacing: 10) {
-                            Image(systemName: s.icon)
-                                .font(.system(size: 13))
-                                .frame(width: 18)
-                                .foregroundColor(section == s ? .accentColor : .secondary)
-                            Text(s.rawValue)
-                                .font(.system(size: 13))
-                                .foregroundColor(section == s ? .primary : .secondary)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 7)
-                        .background(
-                            RoundedRectangle(cornerRadius: 7)
-                                .fill(section == s ? Color.accentColor.opacity(0.12) : Color.clear)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.top, 8)
-
-            Spacer()
-
-            // Status footer
-            VStack(alignment: .leading, spacing: 0) {
-                Divider()
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(cfg.config.autoClassify ? Color.green : Color.secondary)
-                        .frame(width: 6, height: 6)
-                    Text(cfg.config.autoClassify ? "Auto-classify on" : "Auto-classify off")
+                    Text("Shelve")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("v2.1")
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 20)
+            .padding(.bottom, 16)
+
+            // Nav items
+            VStack(spacing: 2) {
+                ForEach(MainSection.allCases) { s in
+                    SidebarItem(label: s.rawValue, icon: s.icon, active: section == s) {
+                        section = s
+                    }
+                }
+            }
+            .padding(.horizontal, 8)
+
+            Spacer(minLength: 0)
+
+            // Footer
+            Divider()
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(cfg.config.autoClassify ? Color.green : Color.secondary)
+                    .frame(width: 6, height: 6)
+                Text(cfg.config.autoClassify ? "Auto on" : "Auto off")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
         }
-        .frame(width: 180)
-        .background(Color(NSColor.windowBackgroundColor))
+        .frame(maxHeight: .infinity)
+        .background(Color(NSColor.controlBackgroundColor))
+    }
+}
+
+struct SidebarItem: View {
+    let label: String
+    let icon: String
+    let active: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: icon)
+                    .font(.system(size: 13))
+                    .frame(width: 18)
+                    .foregroundColor(active ? .accentColor : .secondary)
+                Text(label)
+                    .font(.system(size: 13))
+                    .foregroundColor(active ? .primary : .secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(active ? Color.accentColor.opacity(0.12) : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -126,43 +139,62 @@ struct RulesMainView: View {
     @State private var showNewRuleSheet = false
     @State private var newRuleName = ""
 
-    var body: some View {
-        HStack(spacing: 0) {
+    private let hints = [
+        "e.g. trash installers bigger than 200MB",
+        "e.g. move PDFs older than 30 days to Archive",
+        "e.g. files downloaded between midnight and 3am",
+        "e.g. partial or failed downloads",
+        "e.g. images larger than 50MB",
+    ]
+    @State private var hintIndex = 0
 
-            // Rule list column
+    var body: some View {
+        HSplitView {
+
+            // ── Left column: list ───────────────────────────────────────────
             VStack(spacing: 0) {
 
-                // AI creator bar
-                VStack(spacing: 0) {
+                // AI bar
+                VStack(spacing: 6) {
                     HStack(spacing: 8) {
                         Image(systemName: "sparkles")
+                            .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(.purple)
-                            .font(.system(size: 13))
-                        TextField("Describe a rule in plain English…", text: $aiPrompt)
+
+                        TextField(hints[hintIndex], text: $aiPrompt)
                             .textFieldStyle(.plain)
                             .font(.system(size: 12))
-                            .onSubmit { Task { await createWithAI() } }
+                            .onSubmit { parse() }
+
                         if isGenerating {
-                            ProgressView().scaleEffect(0.6)
+                            ProgressView().scaleEffect(0.65)
                         } else {
-                            Button("Create") { Task { await createWithAI() } }
-                                .font(.system(size: 11, weight: .medium))
+                            Button("Create") { parse() }
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Capsule().fill(Color.purple))
                                 .buttonStyle(.plain)
-                                .foregroundColor(.purple)
                                 .disabled(aiPrompt.trimmingCharacters(in: .whitespaces).isEmpty)
                         }
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 9)
-                    .background(Color.purple.opacity(0.07))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Color.purple.opacity(0.06))
 
                     if let err = aiError {
                         Text(err)
                             .font(.system(size: 10))
                             .foregroundColor(.red)
-                            .padding(.horizontal, 10)
-                            .padding(.bottom, 5)
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 4)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .onAppear {
+                    Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { _ in
+                        withAnimation { hintIndex = (hintIndex + 1) % hints.count }
                     }
                 }
 
@@ -170,12 +202,12 @@ struct RulesMainView: View {
 
                 // Rule list
                 ScrollView {
-                    LazyVStack(spacing: 1) {
+                    LazyVStack(spacing: 0) {
                         ForEach(cfg.config.rules) { rule in
                             RuleListRow(
                                 rule: rule,
                                 isSelected: selectedID == rule.id,
-                                onSelect:  { selectedID = rule.id },
+                                onSelect: { selectedID = rule.id },
                                 onToggle: {
                                     if let i = cfg.config.rules.firstIndex(where: { $0.id == rule.id }) {
                                         cfg.config.rules[i].isEnabled.toggle()
@@ -190,32 +222,35 @@ struct RulesMainView: View {
 
                 Divider()
 
-                // Bottom toolbar
+                // Toolbar
                 HStack {
                     Button { showNewRuleSheet = true } label: {
-                        Image(systemName: "plus").font(.system(size: 13, weight: .medium))
+                        Image(systemName: "plus")
+                            .font(.system(size: 12, weight: .medium))
                     }
                     .buttonStyle(.plain)
                     .help("New Rule")
 
                     Spacer()
 
-                    if let sid = selectedID, cfg.config.rules.contains(where: { $0.id == sid }) {
+                    if let sid = selectedID,
+                       cfg.config.rules.contains(where: { $0.id == sid }) {
                         Button {
                             cfg.config.rules.removeAll { $0.id == sid }
                             cfg.save()
                             selectedID = cfg.config.rules.first?.id
                         } label: {
-                            Image(systemName: "minus").font(.system(size: 13, weight: .medium))
+                            Image(systemName: "minus")
+                                .font(.system(size: 12, weight: .medium))
                         }
                         .buttonStyle(.plain)
                         .help("Delete Rule")
                     }
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 7)
+                .padding(.vertical, 8)
             }
-            .frame(width: 220)
+            .frame(minWidth: 216, idealWidth: 216, maxWidth: 216)
             .sheet(isPresented: $showNewRuleSheet) {
                 NewRuleSheet(name: $newRuleName) { name in
                     guard !name.isEmpty,
@@ -228,43 +263,46 @@ struct RulesMainView: View {
 
             Divider()
 
-            // Rule editor
-            if let sid = selectedID,
-               let idx = cfg.config.rules.firstIndex(where: { $0.id == sid }) {
-                RuleEditorView(rule: cfg.config.rules[idx]) { updated in
-                    cfg.config.rules[idx] = updated
-                    cfg.save()
+            // ── Right column: editor ────────────────────────────────────────
+            ZStack {
+                if let sid = selectedID,
+                   let idx = cfg.config.rules.firstIndex(where: { $0.id == sid }) {
+                    RuleEditorView(rule: cfg.config.rules[idx]) { updated in
+                        cfg.config.rules[idx] = updated
+                        cfg.save()
+                    }
+                    .id(sid)
+                } else {
+                    VStack(spacing: 14) {
+                        Image(systemName: "folder.badge.gearshape")
+                            .font(.system(size: 48))
+                            .foregroundColor(.secondary.opacity(0.25))
+                        Text("Select a rule to edit")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 14))
+                        Button("New Rule") { showNewRuleSheet = true }
+                            .buttonStyle(.borderedProminent)
+                    }
                 }
-                .id(sid)
-            } else {
-                VStack(spacing: 14) {
-                    Image(systemName: "folder.badge.gearshape")
-                        .font(.system(size: 52))
-                        .foregroundColor(.secondary.opacity(0.3))
-                    Text("Select a rule to edit")
-                        .foregroundColor(.secondary)
-                    Button("New Rule") { showNewRuleSheet = true }
-                        .buttonStyle(.borderedProminent)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            .frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    @MainActor
-    private func createWithAI() async {
+    private func parse() {
         let prompt = aiPrompt.trimmingCharacters(in: .whitespaces)
         guard !prompt.isEmpty else { return }
         isGenerating = true
         aiError = nil
-        // Small delay so the spinner shows
-        try? await Task.sleep(nanoseconds: 150_000_000)
-        let rule = AIRuleCreator.createRule(from: prompt)
-        cfg.config.rules.append(rule)
-        cfg.save()
-        selectedID = rule.id
-        aiPrompt = ""
-        isGenerating = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            let rule = AIRuleCreator.createRule(from: prompt)
+            cfg.config.rules.append(rule)
+            cfg.save()
+            selectedID = rule.id
+            aiPrompt = ""
+            isGenerating = false
+        }
     }
 }
 
@@ -277,10 +315,10 @@ struct RuleListRow: View {
     let onToggle: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 9) {
             Button(action: onToggle) {
                 Image(systemName: rule.isEnabled ? "checkmark.circle.fill" : "circle")
-                    .foregroundColor(rule.isEnabled ? .accentColor : .secondary.opacity(0.35))
+                    .foregroundColor(rule.isEnabled ? .accentColor : .secondary.opacity(0.3))
                     .font(.system(size: 14))
             }
             .buttonStyle(.plain)
@@ -297,14 +335,14 @@ struct RuleListRow: View {
             Spacer()
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.vertical, 7)
         .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isSelected ? Color.accentColor.opacity(0.12) : Color.clear)
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(isSelected ? Color.accentColor.opacity(0.1) : Color.clear)
         )
         .contentShape(Rectangle())
         .onTapGesture(perform: onSelect)
-        .padding(.horizontal, 4)
+        .padding(.horizontal, 6)
     }
 
     private func folderIcon(_ id: String) -> String {
@@ -331,28 +369,35 @@ struct HistoryMainView: View {
     @ObservedObject var cfg = ConfigManager.shared
 
     var body: some View {
-        let entries = cfg.recentMoves(limit: 500)
         VStack(spacing: 0) {
             // Header
             HStack {
-                Text("History").font(.title2.bold())
+                Text("History")
+                    .font(.title3.bold())
                 Spacer()
-                Text("\(entries.count) moves").foregroundColor(.secondary).font(.system(size: 12))
+                let count = cfg.recentMoves(limit: 1000).count
+                Text("\(count) move\(count == 1 ? "" : "s")")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
             }
             .padding(.horizontal, 24)
             .padding(.top, 20)
-            .padding(.bottom, 12)
+            .padding(.bottom, 14)
 
             Divider()
 
+            let entries = cfg.recentMoves(limit: 500)
             if entries.isEmpty {
                 Spacer()
-                VStack(spacing: 12) {
+                VStack(spacing: 10) {
                     Image(systemName: "clock.arrow.circlepath")
-                        .font(.system(size: 48)).foregroundColor(.secondary.opacity(0.3))
-                    Text("No history yet").foregroundColor(.secondary)
-                    Text("Run a classify to get started.")
-                        .font(.system(size: 12)).foregroundColor(.secondary)
+                        .font(.system(size: 44))
+                        .foregroundColor(.secondary.opacity(0.25))
+                    Text("No history yet")
+                        .foregroundColor(.secondary)
+                    Text("Classify some files to see moves here.")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
                 }
                 Spacer()
             } else {
@@ -360,7 +405,8 @@ struct HistoryMainView: View {
                     LazyVStack(spacing: 0) {
                         ForEach(entries) { entry in
                             HistoryRow(entry: entry)
-                            Divider().padding(.horizontal, 20)
+                            Divider()
+                                .padding(.leading, 56)
                         }
                     }
                 }
@@ -372,12 +418,18 @@ struct HistoryMainView: View {
 
 struct HistoryRow: View {
     let entry: HistoryEntry
+    private var isTrash: Bool { entry.destination.contains("Trash") }
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(systemName: entry.destination == "🗑 Trash" ? "trash.fill" : "arrow.right.circle.fill")
-                .foregroundColor(entry.destination == "🗑 Trash" ? .red : .green)
-                .font(.system(size: 16))
+            ZStack {
+                Circle()
+                    .fill(isTrash ? Color.red.opacity(0.1) : Color.green.opacity(0.1))
+                    .frame(width: 32, height: 32)
+                Image(systemName: isTrash ? "trash.fill" : "arrow.right")
+                    .font(.system(size: 12))
+                    .foregroundColor(isTrash ? .red : .green)
+            }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(entry.fileName)
@@ -394,7 +446,7 @@ struct HistoryRow: View {
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundColor(.secondary)
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 20)
         .padding(.vertical, 10)
     }
 }
@@ -407,32 +459,88 @@ struct SettingsMainView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Text("Settings").font(.title2.bold())
+                Text("Settings")
+                    .font(.title3.bold())
+                    .padding(.top, 4)
 
                 // Watched Folders
                 GroupBox("Watched Folders") {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        let home = FileManager.default.homeDirectoryForCurrentUser.path
+                        let presets: [(label: String, icon: String, path: String)] = [
+                            ("Downloads", "arrow.down.circle.fill",
+                             (home as NSString).appendingPathComponent("Downloads")),
+                            ("Desktop",   "desktopcomputer",
+                             (home as NSString).appendingPathComponent("Desktop")),
+                            ("Documents", "doc.fill",
+                             (home as NSString).appendingPathComponent("Documents")),
+                        ]
+
+                        // Preset quick-toggles
+                        HStack(spacing: 8) {
+                            ForEach(presets, id: \.path) { preset in
+                                let on = cfg.config.watchDirs.contains(preset.path)
+                                Button {
+                                    if on {
+                                        guard cfg.config.watchDirs.count > 1 else { return }
+                                        cfg.config.watchDirs.removeAll { $0 == preset.path }
+                                    } else {
+                                        cfg.config.watchDirs.append(preset.path)
+                                    }
+                                    cfg.save()
+                                    FileWatcher.shared.start(watching: ConfigManager.shared.watchURLs)
+                                } label: {
+                                    Label(preset.label, systemImage: preset.icon)
+                                        .font(.system(size: 12, weight: .medium))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(
+                                            Capsule()
+                                                .fill(on ? Color.accentColor : Color.secondary.opacity(0.12))
+                                        )
+                                        .foregroundColor(on ? .white : .primary)
+                                }
+                                .buttonStyle(.plain)
+                                .help(on ? "Remove \(preset.label) from watched folders" : "Watch \(preset.label)")
+                            }
+                        }
+
+                        Divider()
+
+                        // All active watched folders with remove
                         ForEach(cfg.config.watchDirs, id: \.self) { dir in
                             HStack {
-                                Image(systemName: "folder.fill").foregroundColor(.accentColor)
-                                Text((dir as NSString).abbreviatingWithTildeInPath)
+                                Image(systemName: "folder.fill")
+                                    .foregroundColor(.accentColor)
                                     .font(.system(size: 13))
+                                Text((dir as NSString).abbreviatingWithTildeInPath)
+                                    .font(.system(size: 12))
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
                                 Spacer()
                                 Button {
+                                    guard cfg.config.watchDirs.count > 1 else { return }
                                     cfg.config.watchDirs.removeAll { $0 == dir }
                                     cfg.save()
+                                    FileWatcher.shared.start(watching: ConfigManager.shared.watchURLs)
                                 } label: {
-                                    Image(systemName: "minus.circle.fill").foregroundColor(.red)
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondary)
                                 }
                                 .buttonStyle(.plain)
                                 .disabled(cfg.config.watchDirs.count <= 1)
+                                .help("Remove folder")
                             }
                         }
+
                         Button(action: addFolder) {
-                            Label("Add Folder…", systemImage: "plus")
+                            Label("Add Custom Folder…", systemImage: "plus")
+                                .font(.system(size: 12))
+                                .foregroundColor(.accentColor)
                         }
+                        .buttonStyle(.plain)
                     }
-                    .padding(8)
+                    .padding(10)
                 }
 
                 // Automation
@@ -445,6 +553,7 @@ struct SettingsMainView: View {
                         if cfg.config.autoClassify {
                             HStack {
                                 Text("Check every")
+                                    .font(.system(size: 13))
                                 Slider(
                                     value: Binding(
                                         get: { Double(cfg.config.classifyInterval) },
@@ -453,32 +562,60 @@ struct SettingsMainView: View {
                                     in: 10...300, step: 10
                                 )
                                 Text("\(cfg.config.classifyInterval)s")
-                                    .frame(width: 40, alignment: .trailing)
+                                    .frame(width: 38, alignment: .trailing)
                                     .monospacedDigit()
+                                    .font(.system(size: 13))
                             }
                         }
                     }
-                    .padding(8)
+                    .padding(10)
+                }
+
+                // Rule Creator
+                GroupBox("Smart Rule Creator") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Type a plain-English description in the Rules tab and press Enter to create a rule instantly.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach([
+                                "trash installers bigger than 200MB",
+                                "move PDFs older than 30 days to Archive",
+                                "files downloaded between midnight and 3am",
+                                "partial or failed downloads",
+                            ], id: \.self) { example in
+                                HStack(spacing: 6) {
+                                    Image(systemName: "sparkles")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.purple)
+                                    Text(example)
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    }
+                    .padding(10)
                 }
 
                 // About
                 GroupBox("About") {
                     HStack(spacing: 14) {
                         Image(nsImage: NSApp.applicationIconImage)
-                            .resizable().frame(width: 44, height: 44).cornerRadius(10)
+                            .resizable()
+                            .frame(width: 44, height: 44)
+                            .cornerRadius(10)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Shelve").font(.system(size: 15, weight: .semibold))
+                            Text("Shelve")
+                                .font(.system(size: 15, weight: .semibold))
                             Text("Version 2.1 · Native macOS 26")
-                                .font(.system(size: 12)).foregroundColor(.secondary)
-                            Text("Automatic Downloads organizer with AI-powered rules.")
-                                .font(.system(size: 11)).foregroundColor(.secondary)
+                                .font(.system(size: 12))
+                                .foregroundColor(.secondary)
                         }
                         Spacer()
                     }
-                    .padding(8)
+                    .padding(10)
                 }
-
-                Spacer()
             }
             .padding(24)
         }
@@ -489,7 +626,6 @@ struct SettingsMainView: View {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
         panel.prompt = "Watch This Folder"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let path = url.path
