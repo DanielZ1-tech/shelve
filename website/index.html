@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" type="image/png" href="icon.png">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shelve — Your Downloads, Organized</title>
+<title>Shelve — Organize Any Folder, Automatically</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -270,25 +271,24 @@
 
 <nav>
   <div class="nav-logo">
-    <div class="icon">
-      <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm2 4h14v2H5v-2zm3 4h8v2H8v-2z"/></svg>
-    </div>
+    <img src="icon.png" alt="Shelve" style="width:28px;height:28px;border-radius:7px;">
     Shelve
   </div>
   <div class="nav-links">
     <a href="#features">Features</a>
-    <a href="#conditions">Rules</a>
+    <a href="#nlrules">Smart Rules</a>
+    <a href="#conditions">Conditions</a>
     <a href="#shortcuts">Shortcuts</a>
     <a href="https://github.com/DanielZ1-tech/shelve" target="_blank">GitHub</a>
   </div>
-  <a class="nav-cta" href="https://github.com/DanielZ1-tech/shelve/releases/latest">Download</a>
+  <a class="nav-cta" href="https://github.com/DanielZ1-tech/shelve/releases/latest">Download v2.2</a>
 </nav>
 
 <!-- HERO -->
 <div class="hero">
   <div class="hero-badge"><span></span> Free &amp; open source · macOS 26+</div>
-  <h1>Your Downloads,<br><em>finally organized.</em></h1>
-  <p class="hero-sub">Shelve lives in your menu bar and automatically sorts, renames, and cleans up your Downloads folder — with rules you control.</p>
+  <h1>Any folder,<br><em>finally organized.</em></h1>
+  <p class="hero-sub">Shelve lives in your menu bar and automatically sorts, renames, and cleans up your folders — watch Downloads, Desktop, Documents, or any custom path.</p>
   <div class="hero-actions">
     <a class="btn-primary" href="https://github.com/DanielZ1-tech/shelve/releases/latest">
       <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 110 20A10 10 0 0112 2zm0 2a8 8 0 100 16A8 8 0 0012 4zm0 4v5l3 3-1 1-3.5-3.5V8h1.5z" style="fill:none;stroke:white;stroke-width:1.5"/><path d="M12 16l-4-4h3V8h2v4h3l-4 4z"/></svg>
@@ -308,56 +308,69 @@
     </div>
     <div class="preview-body">
       <div class="preview-sidebar">
-        <div class="sidebar-item active"><span class="sidebar-icon">📁</span> Files</div>
+        <div style="display:flex;align-items:center;gap:8px;padding:12px 10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);margin-bottom:8px;">
+          <img src="icon.png" alt="Shelve" style="width:28px;height:28px;border-radius:7px;">
+          <div>
+            <div style="font-size:13px;font-weight:600;">Shelve</div>
+            <div style="font-size:10px;color:var(--muted);">v2.2</div>
+          </div>
+        </div>
+        <div class="sidebar-item active"><span class="sidebar-icon">🗂️</span> Rules</div>
         <div class="sidebar-item"><span class="sidebar-icon">🕐</span> History</div>
         <div style="margin-top:auto; padding-top:12px; border-top:1px solid rgba(255,255,255,0.06);">
           <div class="sidebar-item"><span class="sidebar-icon">⚙️</span> Settings</div>
         </div>
       </div>
-      <div class="preview-main">
-        <div class="preview-search">
-          <svg viewBox="0 0 24 24"><path d="M11 3a8 8 0 105.657 13.657l4.343 4.343-1.414 1.414-4.343-4.343A8 8 0 0011 3zm0 2a6 6 0 110 12A6 6 0 0111 5z"/></svg>
-          <span>Search your files…</span>
-        </div>
-        <div class="file-row">
-          <div class="file-badge badge-pdf">PDF</div>
-          <div class="file-info">
-            <div class="file-name">Q3_Report_2026.pdf</div>
-            <div class="file-meta">2.4 MB · just now</div>
+      <div class="preview-main" style="padding:0;display:flex;flex:1;">
+        <!-- Rule list column -->
+        <div style="width:180px;border-right:1px solid var(--border);display:flex;flex-direction:column;">
+          <!-- AI bar -->
+          <div style="padding:10px;border-bottom:1px solid var(--border);background:rgba(108,99,255,0.06);">
+            <div style="display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:7px 10px;">
+              <span style="font-size:12px;">✨</span>
+              <span style="font-size:11px;color:var(--muted);flex:1;">trash big installers…</span>
+            </div>
           </div>
-          <div class="file-folder">Documents</div>
-        </div>
-        <div class="file-row">
-          <div class="file-badge badge-img">IMG</div>
-          <div class="file-info">
-            <div class="file-name">screenshot_001.png</div>
-            <div class="file-meta">840 KB · 2 min ago</div>
+          <!-- Rule rows -->
+          <div style="padding:6px;">
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;background:rgba(108,99,255,0.1);">
+              <span style="color:#4ade80;font-size:13px;">✓</span>
+              <span style="font-size:12px;color:var(--accent2);">Documents</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;">
+              <span style="color:#4ade80;font-size:13px;">✓</span>
+              <span style="font-size:12px;color:var(--muted);">Images</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;">
+              <span style="color:#4ade80;font-size:13px;">✓</span>
+              <span style="font-size:12px;color:var(--muted);">Installers</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;">
+              <span style="color:rgba(255,255,255,0.2);font-size:13px;">○</span>
+              <span style="font-size:12px;color:rgba(255,255,255,0.3);">Videos</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:7px;">
+              <span style="color:#4ade80;font-size:13px;">✓</span>
+              <span style="font-size:12px;color:var(--muted);">Archives</span>
+            </div>
           </div>
-          <div class="file-folder">Images</div>
         </div>
-        <div class="file-row">
-          <div class="file-badge badge-zip">ZIP</div>
-          <div class="file-info">
-            <div class="file-name">project-assets.zip</div>
-            <div class="file-meta">18.2 MB · 10 min ago</div>
+        <!-- Rule editor column -->
+        <div style="flex:1;padding:16px;overflow:hidden;">
+          <div style="font-size:15px;font-weight:600;margin-bottom:14px;">Documents</div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Extensions</div>
+          <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px;">
+            <span style="background:rgba(108,99,255,0.15);color:var(--accent2);font-size:11px;padding:3px 8px;border-radius:5px;">.pdf</span>
+            <span style="background:rgba(108,99,255,0.15);color:var(--accent2);font-size:11px;padding:3px 8px;border-radius:5px;">.doc</span>
+            <span style="background:rgba(108,99,255,0.15);color:var(--accent2);font-size:11px;padding:3px 8px;border-radius:5px;">.docx</span>
           </div>
-          <div class="file-folder">Archives</div>
-        </div>
-        <div class="file-row">
-          <div class="file-badge badge-vid">VID</div>
-          <div class="file-info">
-            <div class="file-name">demo-recording.mp4</div>
-            <div class="file-meta">142 MB · yesterday</div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Conditions</div>
+          <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12px;color:var(--muted);">
+            📅 Older than <span style="color:var(--text);">30 days</span>
           </div>
-          <div class="file-folder">Videos</div>
-        </div>
-        <div class="file-row">
-          <div class="file-badge badge-doc">DOC</div>
-          <div class="file-info">
-            <div class="file-name">contract_draft_v2.docx</div>
-            <div class="file-meta">380 KB · 2 days ago</div>
+          <div style="margin-top:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:12px;color:var(--muted);">
+            📦 File size &gt; <span style="color:var(--text);">1 MB</span>
           </div>
-          <div class="file-folder">Documents</div>
         </div>
       </div>
     </div>
@@ -367,30 +380,37 @@
 <!-- FEATURES -->
 <section id="features">
   <div class="section-label">Features</div>
-  <h2>Everything your Downloads<br>folder deserves</h2>
-  <p class="section-sub">Set it up once. Shelve runs quietly in the background and keeps things tidy.</p>
+  <h2>Everything your folders<br>deserve</h2>
+  <p class="section-sub">Set it up once. Shelve runs quietly in the background and keeps things tidy — across as many folders as you want.</p>
 
   <div class="features-grid">
     <div class="feature-card">
       <div class="feature-icon">
         <svg viewBox="0 0 24 24"><path d="M12 2l9 4v6c0 5.25-3.75 10.15-9 11.25C6.75 22.15 3 17.25 3 12V6l9-4z"/></svg>
       </div>
-      <div class="feature-title">Auto-classify</div>
-      <div class="feature-desc">Watches your Downloads folder and moves files into the right subfolder automatically — PDFs, images, code, videos, and more.</div>
+      <div class="feature-title">Watch any folder</div>
+      <div class="feature-desc">Monitor Downloads, Desktop, Documents, or any custom path — add as many as you want from the setup wizard or Settings tab.</div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 5h-2v6h2V7zm0 8h-2v2h2v-2z"/></svg>
+      </div>
+      <div class="feature-title">Plain-English rules</div>
+      <div class="feature-desc">Type <em style="font-style:italic;color:var(--accent2);">"trash installers bigger than 200MB"</em> and Shelve creates the rule instantly — no dropdowns required.</div>
     </div>
     <div class="feature-card">
       <div class="feature-icon">
         <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1.5L18.5 9H13V3.5zM8 13h8v1.5H8V13zm0 3h8v1.5H8V16zm0-6h3v1.5H8V10z"/></svg>
       </div>
-      <div class="feature-title">Custom rules</div>
-      <div class="feature-desc">Create your own rules with any combination of file types, keywords, date conditions, file size, and name patterns.</div>
+      <div class="feature-title">Powerful conditions</div>
+      <div class="feature-desc">Mix file type, keywords, date, time of day, size, name pattern, and internet-download flag into a single precise rule.</div>
     </div>
     <div class="feature-card">
       <div class="feature-icon">
         <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm2 4h14v2H5v-2zm3 4h8v2H8v-2z"/></svg>
       </div>
       <div class="feature-title">TF-IDF search</div>
-      <div class="feature-desc">Instantly find any organized file with a relevance-ranked search engine built entirely in Swift. No indexing delay.</div>
+      <div class="feature-desc">Instantly find any file across all watched folders with a relevance-ranked search engine built entirely in Swift.</div>
     </div>
     <div class="feature-card">
       <div class="feature-icon">
@@ -401,18 +421,66 @@
     </div>
     <div class="feature-card">
       <div class="feature-icon">
-        <svg viewBox="0 0 24 24"><path d="M9 3l2 2H5v14h14v-9l2-2V19a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h4zm10.121-.121a1 1 0 010 1.414l-9.9 9.9a1 1 0 01-1.414-1.414l9.9-9.9a1 1 0 011.414 0z"/></svg>
-      </div>
-      <div class="feature-title">Move to Trash</div>
-      <div class="feature-desc">Rules can trash files instead of sorting them. Perfect for auto-deleting old installers, temp files, and failed downloads.</div>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">
         <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 5v5.25l4 2.37-.75 1.23L11 13V7h1z"/></svg>
       </div>
       <div class="feature-title">History &amp; undo</div>
       <div class="feature-desc">Every move is logged. One click in the menu bar undoes the last action — no digging through folders required.</div>
     </div>
+  </div>
+</section>
+
+<!-- SMART RULES -->
+<section id="nlrules" style="background: var(--bg2); max-width:100%; padding: 100px 40px;">
+  <div style="max-width:1100px; margin:0 auto;">
+    <div class="section-label">Smart Rule Creator</div>
+    <h2>Rules in plain English</h2>
+    <p class="section-sub">Type what you want. Shelve figures out the conditions, extensions, and destination automatically.</p>
+
+    <div style="margin-top:48px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;">
+      <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px 22px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="font-size:16px;">✨</span>
+          <span style="font-size:13px;color:var(--muted);font-family:monospace;">"trash installers bigger than 200MB"</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">→ Trash rule · .dmg .pkg · size &gt; 200 MB</div>
+      </div>
+      <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px 22px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="font-size:16px;">✨</span>
+          <span style="font-size:13px;color:var(--muted);font-family:monospace;">"move PDFs older than 30 days to Archive"</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">→ Archive folder · .pdf · older than 30 days</div>
+      </div>
+      <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px 22px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="font-size:16px;">✨</span>
+          <span style="font-size:13px;color:var(--muted);font-family:monospace;">"files downloaded between midnight and 3am"</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">→ TimeFiles folder · time of day 0:00–3:00</div>
+      </div>
+      <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px 22px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="font-size:16px;">✨</span>
+          <span style="font-size:13px;color:var(--muted);font-family:monospace;">"partial or failed downloads"</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">→ FailedDownloads · .crdownload .part .tmp</div>
+      </div>
+      <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px 22px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="font-size:16px;">✨</span>
+          <span style="font-size:13px;color:var(--muted);font-family:monospace;">"images from the internet larger than 5MB"</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">→ WebDownloads · .jpg .png · web flag · &gt;5 MB</div>
+      </div>
+      <div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:20px 22px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="font-size:16px;">✨</span>
+          <span style="font-size:13px;color:var(--muted);font-family:monospace;">"scripts ending with .sh to Code"</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);">→ Code folder · name ends with .sh</div>
+      </div>
+    </div>
+    <p style="margin-top:20px;font-size:13px;color:var(--muted);">All parsing is done locally — no API keys, no internet connection needed.</p>
   </div>
 </section>
 
@@ -533,7 +601,7 @@
     </div>
     <a class="btn-primary" href="https://github.com/DanielZ1-tech/shelve/releases/latest" style="display:inline-flex;">
       <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:white"><path d="M12 16l-6-6h4V4h4v6h4l-6 6zm-7 2h14v2H5v-2z"/></svg>
-      Download Shelve v2.1
+      Download Shelve v2.2
     </a>
     <p style="margin-top:16px; font-size:13px; color:var(--muted);">macOS 26+ · Free &amp; open source · <a href="https://github.com/DanielZ1-tech/shelve" style="color:var(--accent2);">View source</a></p>
   </div>
@@ -541,9 +609,7 @@
 
 <footer>
   <div style="display:flex;align-items:center;gap:10px;">
-    <div style="width:22px;height:22px;background:var(--accent);border-radius:5px;display:flex;align-items:center;justify-content:center;">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M3 6h18v2H3V6zm2 4h14v2H5v-2zm3 4h8v2H8v-2z"/></svg>
-    </div>
+    <img src="icon.png" alt="Shelve" style="width:22px;height:22px;border-radius:5px;">
     <span>Shelve · Built by Daniel Zhang</span>
   </div>
   <div class="footer-links">

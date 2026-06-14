@@ -23,19 +23,21 @@ struct MainView: View {
     @State private var section: MainSection = .rules
 
     var body: some View {
-        HSplitView {
+        HStack(spacing: 0) {
             SidebarView(section: $section)
-                .frame(minWidth: 196, idealWidth: 196, maxWidth: 196)
+                .frame(width: 196)
+                .frame(maxHeight: .infinity)
                 .background(Color(NSColor.controlBackgroundColor))
+                .fixedSize(horizontal: true, vertical: false)
 
-            Group {
-                switch section {
-                case .rules:    RulesMainView()
-                case .history:  HistoryMainView()
-                case .settings: SettingsMainView()
-                }
+            Divider()
+
+            ZStack {
+                RulesMainView()   .opacity(section == .rules    ? 1 : 0)
+                HistoryMainView() .opacity(section == .history  ? 1 : 0)
+                SettingsMainView().opacity(section == .settings ? 1 : 0)
             }
-            .frame(minWidth: 620, maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(minWidth: 860, minHeight: 520)
     }
@@ -250,7 +252,7 @@ struct RulesMainView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
             }
-            .frame(minWidth: 216, idealWidth: 216, maxWidth: 216)
+            .frame(minWidth: 216, idealWidth: 216, maxWidth: 216, maxHeight: .infinity)
             .sheet(isPresented: $showNewRuleSheet) {
                 NewRuleSheet(name: $newRuleName) { name in
                     guard !name.isEmpty,
@@ -260,8 +262,6 @@ struct RulesMainView: View {
                     selectedID = name
                 }
             }
-
-            Divider()
 
             // ── Right column: editor ────────────────────────────────────────
             ZStack {
